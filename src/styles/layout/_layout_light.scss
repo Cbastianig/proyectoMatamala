@@ -1,0 +1,20 @@
+$breakpoint: 992px !default;
+$scale: 14px !default;
+$environment: 'local'; 
+$effectOnlightURL: '/gassur-dashboard/layout/images/pages/effect-onlight.png';
+$exceptionOnlightURL: '/gassur-dashboard//layout/images/pages/exception-onlight.png';
+
+@if $environment == 'local' {
+    $effectOnlightURL: '/layout/images/pages/effect-onlight.png';
+    $exceptionOnlightURL: '/layout/images/pages/exception-onlight.png';
+}
+
+.layout-light {
+    --sidebar-shadow: 0px 4px 50px #d9ddfc;
+    --sidebar-border: 1px solid transparent;
+    --card-shadow: 0px 4px 30px rgba(221, 224, 255, 0.54);
+    --body-bg: linear-gradient(180deg, #f6f9fc 0%, #ececf9 100%);
+    --body-image: url('#{$effectOnlightURL}');
+    --root-menu-item-hover-bg: rgba(68, 72, 109, 0.07);
+    --exception-pages-image: url('#{$exceptionOnlightURL}');
+}

@@ -1,0 +1,93 @@
+@keyframes loader12_top {
+    0% {
+        cx: 27;
+        cy: 5;
+        /*arriba*/
+    }
+
+
+    33% {
+        cx: 5;
+        cy: 50;
+        /*izquierda*/
+    }
+
+    66% {
+        cx: 50;
+        /*derecha*/
+        cy: 50;
+    }
+
+    100% {
+        cx: 27;
+        /*Arriba*/
+        cy: 5;
+    }
+}
+
+@keyframes loader12_left {
+    0% {
+        cx: 5;
+        cy: 50;
+        /*izquierda*/
+    }
+
+    33% {
+        cx: 50;
+        cy: 50;
+        /*derecha*/
+    }
+
+    66% {
+        cx: 27;
+        cy: 5;
+        /*arriba*/
+    }
+
+    100% {
+        cx: 5;
+        cy: 50;
+        /*izquierda*/
+    }
+
+}
+
+@keyframes loader12_right {
+    0% {
+        cx: 50;
+        cy: 50;
+        /*derecha*/
+    }
+
+    33% {
+        cx: 27;
+        cy: 5;
+        /*arriba*/
+    }
+
+    66% {
+        cx: 5;
+        cy: 50;
+        /*izquierda*/
+    }
+
+    100% {
+        cx: 50;
+        cy: 50;
+        /*derecha*/
+    }
+
+}
+
+
+.loader12__path-top {
+    animation: loader12_top 2s ease-in-out infinite;
+}
+
+.loader12__path-left {
+    animation: loader12_left 2s ease-in-out infinite;
+}
+
+.loader12__path-right {
+    animation: loader12_right 2s ease-in-out infinite;
+}

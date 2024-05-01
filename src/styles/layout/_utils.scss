@@ -1,0 +1,1127 @@
+.card {
+    border-radius: 8px;
+    background: var(--surface-card);
+    padding: 16px;
+    box-sizing: border-box;
+    margin-bottom: 16px;
+
+    .card-header {
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .card-subtitle {
+        color: var(--text-color-secondary);
+        font-size: 0.857rem;
+        font-weight: 500;
+        margin: -1rem 0 1rem 0;
+    }
+}
+
+.p-datatable-scrollable .p-frozen-column {
+    background: var(--surface-50);
+}
+
+.p-toast {
+
+    &.p-toast-top-right,
+    &.p-toast-top-left,
+    &.p-toast-top-center {
+        top: 70px;
+    }
+}
+
+.p-toast .p-toast-message {
+    background: var(--surface-100) !important;
+}
+
+
+.p-hidden-accessible input,
+.p-hidden-accessible select {
+    opacity: 0;
+}
+
+/* Dropzone*/
+
+
+.dropzone,
+.dropzone * {
+    box-sizing: border-box
+}
+
+.dropzone {
+    min-height: 150px;
+
+    padding: 20px
+}
+
+.dropzone.dz-clickable {
+    cursor: pointer
+}
+
+.dropzone.dz-clickable * {
+    cursor: default
+}
+
+.dropzone.dz-clickable .dz-message,
+.dropzone.dz-clickable .dz-message * {
+    cursor: pointer
+}
+
+.dropzone.dz-started .dz-message {
+    display: none
+}
+
+.dropzone.dz-drag-hover {
+    border-style: solid
+}
+
+.dropzone.dz-drag-hover .dz-message {
+    opacity: .5
+}
+
+.dropzone .dz-message {
+    text-align: center;
+    margin: 3em 0
+}
+
+.dropzone .dz-message .dz-button {
+    background: none;
+    color: #7b809a;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    outline: inherit
+}
+
+.dropzone .dz-preview {
+    position: relative;
+    display: inline-block;
+    vertical-align: top;
+    margin: 16px;
+    min-height: 100px;
+    z-index: 1;
+
+}
+
+.dropzone .dz-preview:hover {
+    z-index: 1000
+}
+
+.dropzone .dz-preview.dz-file-preview .dz-image {
+    border-radius: 20px;
+    background: #999;
+    background: linear-gradient(180deg, #eee, #ddd)
+}
+
+.dropzone .dz-preview.dz-file-preview .dz-details {
+    opacity: 1
+}
+
+
+
+.dropzone .dz-preview.dz-image-preview .dz-details {
+    transition: opacity .2s linear
+}
+
+.dropzone .dz-preview .dz-remove {
+    font-size: 14px;
+    text-align: center;
+    display: block;
+    cursor: pointer;
+    border: none
+}
+
+.dropzone .dz-preview .dz-remove:hover {
+    text-decoration: underline
+}
+
+.dropzone .dz-preview:hover .dz-details {
+    opacity: 1
+}
+
+.dropzone .dz-preview .dz-details {
+    z-index: 20;
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 1;
+    font-size: 13px;
+    min-width: 100%;
+    max-width: 100%;
+    padding: 2em 1em;
+    text-align: center;
+    color: rgba(52, 71, 103, .9);
+    line-height: 150%
+}
+
+.dropzone .dz-preview .dz-details .dz-size {
+    margin-bottom: 1em;
+    font-size: 16px
+}
+
+.dropzone .dz-preview .dz-details .dz-filename {
+    white-space: nowrap
+}
+
+.dropzone .dz-preview .dz-details .dz-filename:hover span {
+    border: 1px solid hsla(0, 0%, 78%, .8);
+    background-color: hsla(0, 0%, 100%, .8)
+}
+
+.dropzone .dz-preview .dz-details .dz-filename:not(:hover) {
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+.dropzone .dz-preview .dz-details .dz-filename:not(:hover) span {
+    border: 1px solid transparent
+}
+
+.dropzone .dz-preview .dz-details .dz-filename span,
+.dropzone .dz-preview .dz-details .dz-size span {
+    background-color: hsla(0, 0%, 100%, .7);
+    padding: 0 .4em;
+    border-radius: 3px
+}
+
+.dropzone .dz-preview:hover .dz-image img {
+    transform: scale(1.05);
+    filter: blur(8px)
+}
+
+.dropzone .dz-preview .dz-image {
+    border-radius: 20px;
+    overflow: hidden;
+    width: 120px;
+    height: 120px;
+    position: relative;
+    display: block;
+    z-index: 10
+}
+
+.dropzone .dz-preview .dz-image img {
+    display: block
+}
+
+.dropzone .dz-preview.dz-success .dz-success-mark {
+    animation: y 3s cubic-bezier(.77, 0, .175, 1)
+}
+
+
+
+.dropzone .dz-preview .dz-error-mark,
+.dropzone .dz-preview .dz-success-mark {
+    pointer-events: none;
+    opacity: 0;
+    z-index: 500;
+    position: absolute;
+    display: block;
+    top: 53%;
+    left: 50%;
+    margin-left: -27px;
+    margin-top: -27px
+}
+
+.dropzone .dz-preview .dz-error-mark svg,
+.dropzone .dz-preview .dz-success-mark svg {
+    display: block;
+    width: 54px;
+    height: 54px
+}
+
+.dropzone .dz-preview.dz-processing .dz-progress {
+    opacity: 1;
+    transition: all .2s linear
+}
+
+.dropzone .dz-preview.dz-complete .dz-progress {
+    opacity: 0;
+    transition: opacity .4s ease-in
+}
+
+
+
+
+
+.dropzone .dz-preview .dz-progress .dz-upload {
+    background: #333;
+    background: linear-gradient(180deg, #666, #444);
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 0;
+    transition: width .3s ease-in-out
+}
+
+.dropzone .dz-preview.dz-error .dz-error-message {
+    display: none
+}
+
+.dropzone .dz-preview.dz-error:hover .dz-error-message {
+    opacity: 1;
+    pointer-events: auto
+}
+
+.dropzone .dz-preview .dz-error-message {
+    pointer-events: none;
+    z-index: 1000;
+    position: absolute;
+    display: block;
+    display: none;
+    opacity: 0;
+    transition: opacity .3s ease;
+    border-radius: 8px;
+    font-size: 13px;
+    top: 130px;
+    left: -10px;
+    width: 140px;
+    background: #be2626;
+    background: linear-gradient(180deg, #be2626, #a92222);
+    padding: .5em 1.2em;
+    color: var(--text-color);
+}
+
+.dropzone .dz-preview .dz-error-message:after {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: 64px;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 6px solid #be2626
+}
+
+.p-fileupload-row>div {
+
+    width: auto !important;
+}
+
+.p-toolbar {
+    overflow: auto;
+}
+
+.p-button {
+    overflow: visible !important;
+}
+
+.angled-div {
+    position: fixed;
+    width: 200px;
+    height: 200px;
+    top: -100px;
+    right: -100px;
+    background-color: #3498db;
+    color: white;
+    text-align: center;
+    box-sizing: border-box;
+    transform: rotate(-45deg);
+    cursor: pointer;
+}
+
+.angled-div>div {
+    transform: rotate(45deg);
+    position: absolute;
+    padding: 5px;
+    top: 32%;
+}
+
+
+.rdrCalendarWrapper {
+    box-sizing: border-box;
+    background: var(--surface-100);
+    ;
+    display: inline-flex;
+    flex-direction: column;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+}
+
+.rdrDateDisplay {
+    display: flex;
+    justify-content: space-between;
+}
+
+.rdrDateDisplayItem {
+    flex: 1 1;
+    width: 0;
+    text-align: center;
+    color: inherit;
+}
+
+.rdrDateDisplayItem+.rdrDateDisplayItem {
+    margin-left: 0.833em;
+}
+
+.rdrDateDisplayItem input {
+    text-align: inherit
+}
+
+.rdrDateDisplayItem input:disabled {
+    cursor: default;
+}
+
+
+
+.rdrMonthAndYearWrapper {
+    box-sizing: inherit;
+    display: flex;
+    justify-content: space-between;
+}
+
+.rdrMonthAndYearPickers {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+
+
+.rdrNextPrevButton {
+    box-sizing: inherit;
+    cursor: pointer;
+    outline: none;
+}
+
+
+
+.rdrMonths {
+    display: flex;
+}
+
+.rdrMonthsVertical {
+    flex-direction: column;
+}
+
+.rdrMonthsHorizontal>div>div>div {
+    display: flex;
+    flex-direction: row;
+}
+
+.rdrMonth {
+    width: 27.667em;
+}
+
+.rdrWeekDays {
+    display: flex;
+}
+
+.rdrWeekDay {
+    flex-basis: calc(100% / 7);
+    box-sizing: inherit;
+    text-align: center;
+}
+
+.rdrDays {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+
+
+.rdrInfiniteMonths {
+    overflow: auto;
+}
+
+.rdrDateRangeWrapper {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+}
+
+.rdrDateInput {
+    position: relative;
+}
+
+.rdrDateInput input {
+    outline: none;
+}
+
+.rdrDateInput .rdrWarning {
+    position: absolute;
+    font-size: 1.6em;
+    line-height: 1.6em;
+    top: 0;
+    right: .25em;
+    color: #FF0000;
+}
+
+.rdrDay {
+    box-sizing: inherit;
+    width: calc(100% / 7);
+    position: relative;
+    font: inherit;
+    cursor: pointer;
+}
+
+.rdrDayNumber {
+    display: block;
+    position: relative;
+}
+
+.rdrDayNumber span {
+    color: var(--text-color);
+    ;
+}
+
+.rdrDayDisabled {
+    cursor: not-allowed;
+}
+
+@supports (-ms-ime-align: auto) {
+    .rdrDay {
+        flex-basis: 14.285% !important;
+    }
+}
+
+.rdrSelected,
+.rdrInRange,
+.rdrStartEdge,
+.rdrEndEdge {
+    pointer-events: none;
+}
+
+
+
+.rdrDayStartPreview,
+.rdrDayInPreview,
+.rdrDayEndPreview {
+    pointer-events: none;
+}
+
+
+
+
+
+.rdrDateRangePickerWrapper {
+    display: inline-flex;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+}
+
+
+
+.rdrStaticRanges {
+    display: flex;
+    flex-direction: column;
+}
+
+.rdrStaticRange {
+    font-size: inherit;
+}
+
+
+
+
+.rdrInputRange {
+    display: flex;
+}
+
+
+
+/*!**************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[12].oneOf[12].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[12].oneOf[12].use[3]!./node_modules/react-date-range/dist/theme/default.css ***!
+  \**************************************************************************************************************************************************************************************************************************************************************************************************/
+.rdrCalendarWrapper {
+    color: #000000;
+    font-size: 12px;
+}
+
+.rdrDateDisplayWrapper {
+    background-color: var(--surface-50);
+}
+
+.rdrDateDisplay {
+    margin: 0.833em;
+}
+
+.rdrDateDisplayItem {
+    border-radius: 4px;
+    background-color: rgb(255, 255, 255);
+    box-shadow: 0 1px 2px 0 rgba(35, 57, 66, 0.21);
+    border: 1px solid transparent;
+}
+
+.rdrDateDisplayItem input {
+    cursor: pointer;
+    height: 2.5em;
+    line-height: 2.5em;
+    border: 0px;
+    background: transparent;
+    width: 100%;
+    color: #849095;
+}
+
+.rdrDateDisplayItemActive {
+    border-color: currentColor;
+}
+
+.rdrDateDisplayItemActive input {
+    color: #7d888d
+}
+
+.rdrMonthAndYearWrapper {
+    align-items: center;
+    height: 60px;
+    padding-top: 10px;
+}
+
+.rdrMonthAndYearPickers {
+    font-weight: 600;
+}
+
+.rdrMonthAndYearPickers select {
+
+    transition: border-color 0.3s ease;
+    -moz-appearance: none;
+    appearance: none;
+    -webkit-appearance: none;
+
+    background: transparent;
+    padding: 10px 30px 10px 10px;
+    border-radius: 4px;
+    outline: 0;
+    color: var(--text-color);
+    ;
+    background: url("data:image/svg+xml;utf8,<svg width='9px' height='6px' viewBox='0 0 9 6' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'><g id='Artboard' stroke='none' stroke-width='1' fill='none' fill-rule='evenodd' transform='translate(-636.000000, -171.000000)' fill-opacity='0.368716033'><g id='input' transform='translate(172.000000, 37.000000)' fill='%23FFFFFF' fill-rule='nonzero'><g id='Group-9' transform='translate(323.000000, 127.000000)'><path d='M142.280245,7.23952813 C141.987305,6.92353472 141.512432,6.92361662 141.219585,7.23971106 C140.926739,7.5558055 140.926815,8.06821394 141.219755,8.38420735 L145.498801,13 L149.780245,8.38162071 C150.073185,8.0656273 150.073261,7.55321886 149.780415,7.23712442 C149.487568,6.92102998 149.012695,6.92094808 148.719755,7.23694149 L145.498801,10.7113732 L142.280245,7.23952813 Z' id='arrow'></path></g></g></g></svg>") no-repeat;
+    background-position: right 8px center;
+    cursor: pointer;
+    text-align: center
+}
+
+.rdrMonthAndYearPickers select:hover,
+.rdrMonthAndYearPickers select:focus {
+    border-color: #80bdff;
+    background-color: rgba(0, 0, 0, 0.07);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+
+.rdrMonthAndYearPickers select option {
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #333;
+    background-color: #f9f9f9;
+}
+
+.rdrMonthAndYearPickers select option:hover {
+    background-color: #ddd;
+}
+
+/* Estilo adicional para la opción seleccionada */
+.rdrMonthAndYearPickers select option:checked {
+    background-color: #007bff;
+    color: var(--text-color);
+    ;
+}
+
+.rdrMonthPicker,
+.rdrYearPicker {
+    margin: 0 5px
+}
+
+
+.rdrNextPrevButton {
+    display: block;
+    width: 24px;
+    height: 24px;
+    margin: 0 0.833em;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: #EFF2F7
+}
+
+.rdrNextPrevButton:hover {
+    background: #E1E7F0;
+}
+
+.rdrNextPrevButton i {
+    display: block;
+    width: 0;
+    height: 0;
+    padding: 0;
+    text-align: center;
+    border-style: solid;
+    margin: auto;
+    transform: translate(-3px, 0px);
+}
+
+.rdrPprevButton i {
+    border-width: 4px 6px 4px 4px;
+    border-color: transparent rgb(52, 73, 94) transparent transparent;
+    transform: translate(-3px, 0px);
+}
+
+.rdrNextButton i {
+    margin: 0 0 0 7px;
+    border-width: 4px 4px 4px 6px;
+    border-color: transparent transparent transparent rgb(52, 73, 94);
+    transform: translate(3px, 0px);
+}
+
+.rdrWeekDays {
+    padding: 0 0.833em;
+}
+
+.rdrMonth {
+    padding: 0 0.833em 1.666em 0.833em;
+}
+
+.rdrMonth .rdrWeekDays {
+    padding: 0;
+}
+
+.rdrMonths.rdrMonthsVertical .rdrMonth:first-child .rdrMonthName {
+    display: none;
+}
+
+.rdrWeekDay {
+    font-weight: 400;
+    line-height: 2.667em;
+    color: rgb(132, 144, 149);
+}
+
+.rdrDay {
+    background: transparent;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    border: 0;
+    padding: 0;
+    line-height: 3.000em;
+    height: 3.000em;
+    text-align: center;
+    color: #1d2429
+}
+
+.rdrDay:focus {
+    outline: 0;
+}
+
+.rdrDayNumber {
+    outline: 0;
+    font-weight: 300;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    top: 5px;
+    bottom: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rdrDayToday .rdrDayNumber span {
+    font-weight: 500
+}
+
+.rdrDayToday .rdrDayNumber span:after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translate(-50%, 0);
+    width: 18px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--text-color);
+    ;
+}
+
+.rdrDayToday:not(.rdrDayPassive) .rdrInRange~.rdrDayNumber span:after,
+.rdrDayToday:not(.rdrDayPassive) .rdrStartEdge~.rdrDayNumber span:after,
+.rdrDayToday:not(.rdrDayPassive) .rdrEndEdge~.rdrDayNumber span:after,
+.rdrDayToday:not(.rdrDayPassive) .rdrSelected~.rdrDayNumber span:after {
+    background: var(--text-color);
+    ;
+}
+
+.rdrDay:not(.rdrDayPassive) .rdrInRange~.rdrDayNumber span,
+.rdrDay:not(.rdrDayPassive) .rdrStartEdge~.rdrDayNumber span,
+.rdrDay:not(.rdrDayPassive) .rdrEndEdge~.rdrDayNumber span,
+.rdrDay:not(.rdrDayPassive) .rdrSelected~.rdrDayNumber span {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.rdrSelected,
+.rdrInRange,
+.rdrStartEdge,
+.rdrEndEdge {
+    background: var(--primary-color);
+    position: absolute;
+    top: 5px;
+    left: 0;
+    right: 0;
+    bottom: 5px;
+}
+
+.rdrSelected {
+    left: 2px;
+    right: 2px;
+}
+
+
+
+.rdrStartEdge {
+    border-top-left-radius: 1.042em;
+    border-bottom-left-radius: 1.042em;
+    left: 2px;
+}
+
+.rdrEndEdge {
+    border-top-right-radius: 1.042em;
+    border-bottom-right-radius: 1.042em;
+    right: 2px;
+}
+
+.rdrSelected {
+    border-radius: 1.042em;
+}
+
+.rdrDayStartOfMonth .rdrInRange,
+.rdrDayStartOfMonth .rdrEndEdge,
+.rdrDayStartOfWeek .rdrInRange,
+.rdrDayStartOfWeek .rdrEndEdge {
+    border-top-left-radius: 1.042em;
+    border-bottom-left-radius: 1.042em;
+    left: 2px;
+}
+
+.rdrDayEndOfMonth .rdrInRange,
+.rdrDayEndOfMonth .rdrStartEdge,
+.rdrDayEndOfWeek .rdrInRange,
+.rdrDayEndOfWeek .rdrStartEdge {
+    border-top-right-radius: 1.042em;
+    border-bottom-right-radius: 1.042em;
+    right: 2px;
+}
+
+.rdrDayStartOfMonth .rdrDayInPreview,
+.rdrDayStartOfMonth .rdrDayEndPreview,
+.rdrDayStartOfWeek .rdrDayInPreview,
+.rdrDayStartOfWeek .rdrDayEndPreview {
+    border-top-left-radius: 1.333em;
+    border-bottom-left-radius: 1.333em;
+    border-left-width: 1px;
+    left: 0px;
+}
+
+.rdrDayEndOfMonth .rdrDayInPreview,
+.rdrDayEndOfMonth .rdrDayStartPreview,
+.rdrDayEndOfWeek .rdrDayInPreview,
+.rdrDayEndOfWeek .rdrDayStartPreview {
+    border-top-right-radius: 1.333em;
+    border-bottom-right-radius: 1.333em;
+    border-right-width: 1px;
+    right: 0px;
+}
+
+.rdrDayStartPreview,
+.rdrDayInPreview,
+.rdrDayEndPreview {
+    background: rgba(255, 255, 255, 0.09);
+    position: absolute;
+    top: 3px;
+    left: 0px;
+    right: 0px;
+    bottom: 3px;
+    pointer-events: none;
+    border: 0px solid currentColor;
+    z-index: 1;
+}
+
+.rdrDayStartPreview {
+    border-top-width: 1px;
+    border-left-width: 1px;
+    border-bottom-width: 1px;
+    border-top-left-radius: 1.333em;
+    border-bottom-left-radius: 1.333em;
+    left: 0px;
+}
+
+.rdrDayInPreview {
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+}
+
+.rdrDayEndPreview {
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-top-right-radius: 1.333em;
+    border-bottom-right-radius: 1.333em;
+    right: 0px;
+}
+
+.rdrDefinedRangesWrapper {
+    font-size: 12px;
+    width: 226px;
+    border-right: solid 1px #eff2f7;
+    background: var(--surface-50);
+    ;
+}
+
+
+
+.rdrStaticRange {
+    border: 0;
+    cursor: pointer;
+    display: block;
+    outline: 0;
+    border-bottom: 1px solid #eff2f7;
+    padding: 0;
+    background: var(--surface-50);
+}
+
+.rdrStaticRange:hover .rdrStaticRangeLabel,
+.rdrStaticRange:focus .rdrStaticRangeLabel {
+    background: var(--surface-300)
+}
+
+
+.rdrStaticRangeLabel {
+    display: block;
+    outline: 0;
+    line-height: 18px;
+    padding: 10px 20px;
+    text-align: left;
+}
+
+.rdrInputRanges {
+    padding: 10px 0;
+}
+
+.rdrInputRange {
+    align-items: center;
+    padding: 5px 20px;
+}
+
+.rdrInputRangeInput {
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    border-radius: 4px;
+    text-align: center;
+    border: solid 1px rgb(222, 231, 235);
+    margin-right: 10px;
+    color: rgb(108, 118, 122)
+}
+
+.rdrInputRangeInput:focus,
+.rdrInputRangeInput:hover {
+    border-color: rgb(180, 191, 196);
+    outline: 0;
+    color: #333;
+}
+
+.rdrCalendarWrapper:not(.rdrDateRangeWrapper) .rdrDayHovered .rdrDayNumber:after {
+    content: '';
+    border: 1px solid currentColor;
+    border-radius: 1.333em;
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    left: 0px;
+    right: 0px;
+    background: transparent;
+}
+
+.rdrDayPassive {
+    pointer-events: none;
+
+}
+
+.rdrDayPassive .rdrDayNumber span {
+    color: var(--text-color-secondary);
+}
+
+.rdrDayPassive .rdrInRange,
+.rdrDayPassive .rdrStartEdge,
+.rdrDayPassive .rdrEndEdge,
+.rdrDayPassive .rdrSelected,
+.rdrDayPassive .rdrDayStartPreview,
+.rdrDayPassive .rdrDayInPreview,
+.rdrDayPassive .rdrDayEndPreview {
+    display: none;
+}
+
+.rdrDayDisabled {
+    background-color: rgb(248, 248, 248);
+}
+
+.rdrDayDisabled .rdrDayNumber span {
+    color: #aeb9bf;
+}
+
+.rdrDayDisabled .rdrInRange,
+.rdrDayDisabled .rdrStartEdge,
+.rdrDayDisabled .rdrEndEdge,
+.rdrDayDisabled .rdrSelected,
+.rdrDayDisabled .rdrDayStartPreview,
+.rdrDayDisabled .rdrDayInPreview,
+.rdrDayDisabled .rdrDayEndPreview {
+    filter: grayscale(100%) opacity(60%);
+}
+
+.rdrMonthName {
+    text-align: left;
+    font-weight: 600;
+    color: #849095;
+    padding: 0.833em;
+}
+
+
+.calendarWrap {
+    display: inline-block;
+    position: relative;
+}
+
+.calendarElement {
+    display: block;
+    right: 35.1562px;
+    left: auto;
+    position: absolute;
+    top: 40px;
+    border-radius: 10px;
+    z-index: 999;
+    background-color: var(--surface-50);
+    ;
+}
+
+.rdrDateRangePickerWrapper {
+    font-family: sans-serif;
+    display: flex;
+}
+
+.rdrStaticRangeLabel {
+
+    line-height: 25px;
+    font-size: 14px;
+
+}
+
+.rdrStaticRange .rdrStaticRangeSelected {
+    color: var(--primary-color) !important;
+}
+
+.rdrDefinedRangesWrapper .rdrStaticRangeSelected {
+    color: currentColor;
+    font-weight: 650;
+
+}
+
+.rdrDayToday .rdrDayNumber span:after {
+    background-color: #3f51b5;
+}
+
+.datePicker {
+    justify-content: space-around !important;
+}
+
+.rdrStaticRange {
+    border: none !important;
+    color: var(--text-color);
+}
+
+.rdrCalendarWrapper,
+.rdrDefinedRangesWrapper {
+    flex: 1 !important;
+    border: none !important;
+}
+
+@media (max-width: 1000px) {
+    .rdrMonths {
+        flex-direction: column !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .rdrDateRangePickerWrapper {
+        display: block !important;
+        left: 50%;
+        transform: translateX(-50%);
+        right: auto;
+    }
+
+    .rdrDefinedRangesWrapper {
+        width: 100%;
+    }
+
+    .datePicker {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .rdrMonths {
+        flex-direction: column !important;
+    }
+
+    .exception-footer {
+        display: none !important;
+    }
+}
+
+
+
+.responsive {
+    max-width: 50%;
+}
+
+.responsive .p-dropdown-item {
+    white-space: normal !important;
+}
+
+
+
+.loading-wrapper {
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.loading-wrapper>svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+}
+
+.p-dropdown.p-component.p-inputwrapper.p-inputwrapper-filled {
+    height: auto;
+}
+
+.p-fluid .p-button-icon-only {
+    width: 2.286rem;
+}
+
+.button_cierre_calendar {
+    color: var(--text-color) !important;
+}
+
+.p-datatable-thead {
+    background-color: var(--surface-50);
+}
+
+.p-scrolltop .p-scrolltop-icon {
+
+    color: var(--primary-color-text) !important;
+}
+

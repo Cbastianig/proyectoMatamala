@@ -1,0 +1,22 @@
+$breakpoint: 992px !default;
+$scale: 14px !default;
+$environment: 'local'; 
+
+$effectOnlightURL: '/gassur-dashboard/layout/images/pages/effect-ondark.png';
+$exceptionOnlightURL: '/gassur-dashboard/layout/images/pages/exception-ondark.png';
+
+@if $environment == 'local' {
+    $effectOnlightURL: '/layout/images/pages/effect-ondark.png';
+    $exceptionOnlightURL: '/layout/images/pages/exception-ondark.png';
+}
+
+
+.layout-dark {
+    --sidebar-shadow: none;
+    --sidebar-border: 1px solid var(--surface-border);
+    --card-shadow: none;
+    --body-bg: linear-gradient(180deg, #2e323f 0%, #0a061a 100%);
+    --body-image: url('#{$effectOnlightURL}');
+    --root-menu-item-hover-bg: rgba(255, 255, 255, 0.05);
+    --exception-pages-image: url('#{$exceptionOnlightURL}');
+}
