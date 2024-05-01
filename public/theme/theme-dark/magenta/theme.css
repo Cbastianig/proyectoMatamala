@@ -8,7 +8,6 @@
   --text-color: #ffffff;
   --text-color-secondary: #c8ccd8;
   --primary-color: #ec4dbc;
-  --secondary-color: #7e2a65;
   --primary-color-text: #ffffff;
   --font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol;
   --surface-0: #0a061a;
@@ -6038,6 +6037,3 @@
   flex: 0;
   padding: 0;
 }
-
-
-/* Add your customizations of layout here */
