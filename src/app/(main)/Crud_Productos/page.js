@@ -18,7 +18,7 @@ export default async function Page({ searchParams }) {
 
     const data = await readDataProductos()
     
-    console.log(data)
+    
  
    
     return (<>

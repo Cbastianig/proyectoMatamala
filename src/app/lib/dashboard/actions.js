@@ -2,47 +2,102 @@
 require('dotenv').config();
 import { unstable_noStore as noStore, revalidatePath } from 'next/cache';
 import log_error from "../actions/Comunes/log/actions";
-import {  connect } from "../connect";
+import { connect } from "../connect";
 
 
-export async function  readDataProductos (params) {
+export async function readDataProductos(params) {
     return new Promise(async (resolve, reject) => {
         try {
-           noStore();
+            noStore();
             const conn = await connect();
-            const [rows] = await conn.query('SELECT * FROM bodega.productos where estado="ACTIVO" ORDER BY fecha_creacion desc;');
+            const [rows] = await conn.query('SELECT p.*, c.nombre  as categoria_nombre FROM bodega.productos p inner join bodega.categorias c on c.id = p.categoria  where estado="ACTIVO" ORDER BY fecha_creacion desc;');
             let result = rows.map(result => {
                 result.fecha_creacion = result.fecha_creacion.toLocaleDateString('es-ES');
+                result.fecha_Compra = result.fecha_Compra.toLocaleDateString('es-ES');
                 return Object.assign({}, result);
             });
             resolve(result);
-            
-            resolve(rows);
+
         } catch (error) {
             reject(error);
         }
     });
 }
+export async function getDataYear() {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const conn = await connect();
+            const [rows] = await conn.query(`SELECT sum(cantidad) as total, categoria, YEAR(fecha_Compra) as anio_compra
+            FROM bodega.productos p 
+            WHERE estado="ACTIVO" 
+            GROUP BY categoria , anio_compra 
+            ORDER BY categoria DESC;`);
+            let result = rows.map(result => {
+                return Object.assign({}, result);
+            });
+            resolve(result);
+        } catch (error) {
+            reject(error);
+        }
+    });
 
-export async function  DeleteDataProductos (id) {
+}
+export async function getDataYearTotalVenta(year, optionfilter) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const conn = await connect();
+            const [rows] = await conn.query(`SELECT sum(${optionfilter}) as total, categoria
+            FROM bodega.productos p 
+            WHERE estado="ACTIVO" and YEAR(fecha_Compra)=?
+            GROUP BY categoria  
+            ORDER BY categoria DESC;`, [year]);
+            let result = rows.map(result => {
+                return Object.assign({}, result);
+            });
+            resolve(result);
+        } catch (error) {
+            reject(error);
+        }
+    });
+
+}
+
+
+export async function getDataYearsCantidadompras(year, optionfilter) {
+    const conn = await connect();
+    const [rows] = await conn.query(`SELECT sum(${optionfilter}) as total, categoria
+    FROM bodega.productos p 
+    WHERE estado="ACTIVO" and YEAR(fecha_Compra)=?
+    GROUP BY categoria  
+    ORDER BY categoria DESC;`, [year]);
+    let result = rows.map(result => {
+        return Object.assign({}, result);
+    });
+    return result;
+
+}
+
+
+
+export async function DeleteDataProductos(id) {
     return new Promise(async (resolve, reject) => {
         try {
             const conn = await connect();
             const [rows] = await conn.query(`UPDATE bodega.productos
             SET  estado='ELIMINADO'
             WHERE id=?;`, [id]);
-            resolve({res: 'ok'});
+            resolve({ res: 'ok' });
             revalidatePath('/Crud_Productos/page');
         } catch (error) {
-            reject({res: 'error' , error: error});
+            reject({ res: 'error', error: error });
         }
     });
 }
 
-export async function createData (){
+export async function createData() {
     const data = await getdata();
-   
-    
+
+
     for (let i = 0; i < data.length; i++) {
         // Code to iterate over each data item
         const fecha = await randomDate(new Date(2020, 0, 1), new Date());
@@ -50,25 +105,29 @@ export async function createData (){
         const precio_unitario_compra = await randomint();
         const cantidad_vendidos = await randomNum0_200();
         const cantidad = cantidad_compra - cantidad_vendidos;
-        
+
         //precio_unitario_venta is the 30% of precio_unitario
-        const precio_unitario_venta = precio_unitario_compra * 1.3 ;
+        const precio_unitario_venta = precio_unitario_compra * 1.3;
         const precio_total = precio_unitario_compra * cantidad_compra;
         const precio_venta_total = precio_unitario_venta * cantidad_vendidos;
         const estado = 'ACTIVO'
+        //function that return a number between 1 and 4
 
-       
-        
+        const categoria = Math.floor(Math.random() * (4 - 1) + 1);
+
+
+
+
         const conn = await connect();
         const [rows] = await conn.query(`INSERT INTO bodega.productos
-        ( nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado, fecha_creacion)
-        VALUES( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW());`,[data[i], fecha, cantidad_compra, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado]);
-        
+        ( nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado, fecha_creacion, categoria)
+        VALUES( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?);`, [data[i], fecha, cantidad_compra, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado, categoria]);
+
 
 
         // const [rows] = await conn.query(`INSERT INTO bodega.productos (descripcion, estado, fecha_creacion)`
     }
-    return {res: 'ok'};
+    return { res: 'ok' };
 
 }
 //function that return a random date in mysql format
@@ -93,69 +152,70 @@ async function randomNum0_200() {
 
 
 export async function editData(data) {
-    
+
     const id = data.id;
     const nombre = data.nombre;
     const fecha_Compra = data.fecha_Compra;
     const cantidad_compras = data.cantidad_compras;
     const precio_unitario_compra = data.precio_unitario_compra;
-    
+
     const cantidad_vendidos = data.cantidad_vendidos;
     const cantidad = cantidad_compras - cantidad_vendidos;
     const precio_unitario_venta = data.precio_unitario_venta;
     const precio_total = precio_unitario_compra * cantidad_compras;
     const precio_venta_total = precio_unitario_venta * cantidad_vendidos;
-    
+    const categoria = data.categoria;
+
 
     return new Promise(async (resolve, reject) => {
         try {
             const conn = await connect();
             const [rows] = await conn.query(`UPDATE bodega.productos
             SET nombre=?, fecha_Compra=?, cantidad_compras=?, precio_unitario_compra=?, cantidad=?, cantidad_vendidos=?,
-             precio_unitario_venta=?, precio_total=?, precio_venta_total=? WHERE id=?;`, [nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, id]);
-            resolve({res: 'ok'});
+             precio_unitario_venta=?, precio_total=?, precio_venta_total=?, categoria=? WHERE id=?;`, [nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, categoria, id]);
+            resolve({ res: 'ok' });
             revalidatePath('/Crud_Productos/page');
         } catch (error) {
-            reject({res: 'error' , error: error});
+            reject({ res: 'error', error: error });
         }
     });
 
 }
-export async function createnewRow (data){
-   
+export async function createnewRow(data) {
+
     const nombre = data.nombre;
     const fecha_Compra = data.fecha_Compra;
     const cantidad_compras = data.cantidad_compras;
     const precio_unitario_compra = data.precio_unitario_compra;
-    
+
     const cantidad_vendidos = data.cantidad_vendidos;
     const cantidad = cantidad_compras - cantidad_vendidos;
     const precio_unitario_venta = data.precio_unitario_venta;
     const precio_total = precio_unitario_compra * cantidad_compras;
     const precio_venta_total = precio_unitario_venta * cantidad_vendidos;
     const estado = 'ACTIVO'
+    const categoria = data.categoria;
     return new Promise(async (resolve, reject) => {
         try {
             const conn = await connect();
             const [rows] = await conn.query(`INSERT INTO bodega.productos
-            ( nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado, fecha_creacion)
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW());`,[nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado]);
+            ( nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado, fecha_creacion, categoria)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?);`, [nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado, categoria]);
             revalidatePath('/Crud_Productos/page');
-            resolve({res: 'ok'});
-            
+            resolve({ res: 'ok' });
         } catch (error) {
-            reject({res: 'error' , error: error});
+            reject({ res: 'error', error: error });
         }
     });
 
 
 }
-    
 
 
-async function  getdata() {
 
-     const data = [
+async function getdata() {
+
+    const data = [
         'TUERCA HEX.5/16"-18 GR.5 C/SEGURO',
         'KIT REPARACION 80 DIAMETRO MICROTEC',
         'SOPORTE PIE SKF SY 510 M',
@@ -2112,7 +2172,8 @@ async function  getdata() {
         'ENCODER ALLEN BRADLEY 845T-DZ22ACM-C',
         'RELE ESTADO SOLIDO OMRON G3NA-D210BDC524',
         'PASTILLA RECTIF.VOLLMER 414132 CA200',
-        ]
-    
-    return  data
+    ]
+
+    return data
 }
+

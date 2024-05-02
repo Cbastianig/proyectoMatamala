@@ -57,7 +57,7 @@ export default function useTabla({ toast}) {
         setSubmitted(true);
         setLoading(true);
 
-        const resultados = validarParametros([Dato.nombre, Dato.cantidad_compras, Dato.cantidad_vendidos, Dato.precio_unitario_venta, Dato.fecha_Compra])
+        const resultados = validarParametros([Dato.nombre, Dato.cantidad_compras, Dato.cantidad_vendidos, Dato.precio_unitario_venta, Dato.cantidad_compras, Dato.precio_unitario_compra, Dato.categoria])
         if (!resultados) {
             setLoading(false);
             return;
@@ -159,7 +159,8 @@ export default function useTabla({ toast}) {
         precio_unitario_venta: null,
         fecha_Compra: null,
         cantidad_compras: null,
-        precio_unitario_compra: null
+        precio_unitario_compra: null,
+        categoria: null
     };
 
 

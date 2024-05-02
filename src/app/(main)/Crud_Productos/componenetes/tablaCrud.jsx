@@ -7,15 +7,15 @@ import { DataTable } from "primereact/datatable";
 
 import { Toast } from "primereact/toast";
 import { Toolbar } from "primereact/toolbar";
-import React, { use, useCallback, useEffect, useRef, useState } from "react";
+import React, {  useRef } from "react";
 import useTabla from "../hooks/useTabla";
 import { Dialog } from "primereact/dialog";
-import { Button } from "primereact/button";
-import { DeleteDataProductos, createnewRow, editData } from "@/app/lib/dashboard/actions";
+
 import { InputText } from "primereact/inputtext";
 import { InputNumber } from "primereact/inputnumber";
 import { classNames } from "primereact/utils";
 import { Calendar } from "primereact/calendar";
+import { Dropdown } from "primereact/dropdown";
 
 
 export default function TablaCrud({ data }) {
@@ -29,6 +29,14 @@ export default function TablaCrud({ data }) {
         _Dato[`${name}`] = val;
         SetDato(_Dato);
     };
+    const preciototalbody = (rowData)=>{
+        return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(rowData.precio_total)
+
+    }
+    const precioVentaBody = (rowData)=>{
+        return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(rowData.precio_venta_total)
+
+    }
 
 
 
@@ -44,10 +52,14 @@ export default function TablaCrud({ data }) {
 
                 <Column field="nombre" header="Nombre" sortable ></Column>
                 <Column field="cantidad" header='Cantidad' sortable  ></Column>
-                <Column field="fecha_creacion" header="Fecha Creacion" sortable style={{ minWidth: '12rem' }}></Column>
-                <Column field="descripcion" header='Descripcion' sortable ></Column>
-
+                <Column field="cantidad_compras" header='Cantidad de Compras' sortable ></Column>
                 <Column field="cantidad_vendidos" header="Cantidad Vendidos" sortable  ></Column>
+                <Column field="fecha_Compra" header="Fecha compra" sortable style={{ minWidth: '12rem' }}></Column>
+                <Column field="precio_total" header="Precio Total de Compra" body={preciototalbody} sortable  ></Column>
+                <Column field="precio_venta_total" header="Precio Total de Venta" body={precioVentaBody} sortable  ></Column>
+                <Column field="categoria_nombre" header="Categoria" sortable  ></Column>
+
+                
                 <Column header="Acciones" body={actionBodyTemplate} exportable={false} ></Column>
             </DataTable>
 
@@ -95,6 +107,16 @@ export default function TablaCrud({ data }) {
                     </label>
                     <InputNumber keyfilter="precio_unitario_venta" id="precio_unitario_venta" value={Dato.precio_unitario_venta} onValueChange={(e) => onInputChange(e, 'precio_unitario_venta')} required className={classNames({ 'p-invalid': submitted && !Dato.precio_unitario_venta  })} />
                     {submitted && !Dato.precio_unitario_venta && Dato.precio_unitario_venta !== 0 && <small className="p-error">Este campo es obligatorio.</small>}
+
+                </div>
+                
+                <div className="field">
+                    <label htmlFor="categoria" className="font-bold">
+                    Categoria
+                    </label>
+                    <Dropdown id="categoria" value={Dato.categoria} options={[{ name: 'Electrico', value: 1 }, { name: 'Estructuras', value: 2 }, { name: 'Mecanico', value: 3 }]} onChange={(e) => onInputChange(e, 'categoria')} optionLabel="name" placeholder="Seleccione una categoria" className={classNames({ 'p-invalid': submitted && !Dato.categoria })} />
+                  
+                    {submitted && !Dato.categoria && Dato.categoria !== 0 && <small className="p-error">Este campo es obligatorio.</small>}
 
                 </div>
 
