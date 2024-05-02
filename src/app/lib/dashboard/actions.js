@@ -2,422 +2,2117 @@
 require('dotenv').config();
 import { unstable_noStore as noStore, revalidatePath } from 'next/cache';
 import log_error from "../actions/Comunes/log/actions";
-import { createSSHConnection, connect } from "../connect";
-import { getindicadores } from '@/app/(main)/dashboard/componentes/graficoServerindicarores';
+import {  connect } from "../connect";
 
 
-export async function getDataOficioSec(fecha_inicio, fecha_fin) {
-   
-    let query = ''
-    let values = []
-    let conn = null
-    if (process.env.NODE_ENV === 'LOCAL_DEV') {
-         conn = await createSSHConnection();
-    }
-    else {
-         conn = await connect();
-    }
-
-    try {
-
-        const fecha_inicio_query = convertirFechaMySQL(fecha_inicio)
-        const fecha_fin_query = convertirFechaMySQL(fecha_fin)
-
-        query = `SELECT tipo, DATE_FORMAT(mes_actual, '%m-%Y') as mes_actual, indicador 
-            FROM gassur_star.MV_INDICADORES_GENERALES_31350 
-            WHERE mes_actual BETWEEN ? AND ? ;`
-        values = [fecha_inicio_query, fecha_fin_query]
-
-
-        const [results, fields] = await conn.query(query, values);
-
-        return results;
-    } catch (err) {
-
-
-        console.log(err)
-        log_error(err)
-        throw new Error(err)
-
-    }
-}
-function convertirFechaMySQL(fechaOriginal) {
-    // Convertir la fecha a un objeto Date
-    var fecha = new Date(fechaOriginal);
-
-    // Obtener los componentes de la fecha
-    var año = fecha.getFullYear();
-    var mes = fecha.getMonth() + 1; // Los meses en JavaScript van de 0 a 11, por lo que sumamos 1
-    var dia = fecha.getDate();
-
-    // Formatear la fecha para MySQL
-    var fechaMySQL = año + '-' + (mes < 10 ? '0' : '') + mes + '-' + (dia < 10 ? '0' : '') + dia;
-
-    return fechaMySQL;
-}
-
-export async function getmesesOficioSec(fecha_inicio, fecha_fin) {
-    let query = ''
-    let values = []
-    let conn = null
-    if (process.env.NODE_ENV === 'LOCAL_DEV') {
-         conn = await createSSHConnection();
-    }
-    else {
-         conn = await connect();
-    }
-    try {
-        const fecha_inicio_query = convertirFechaMySQL(fecha_inicio)
-        const fecha_fin_query = convertirFechaMySQL(fecha_fin)
-        query = `SELECT DISTINCT DATE_FORMAT(mes_actual, '%m-%Y') as mes_actual
-            FROM gassur_star.MV_INDICADORES_GENERALES_31350
-            WHERE mes_actual BETWEEN ? AND ?`
-        values = [fecha_inicio_query, fecha_fin_query]
-
-        const [results, fields] = await conn.query(query, values);
-
-
-
-        return results;
-    } catch (err) {
-        log_error(err)
-        console.log(err);
-        throw new Error(err)
-
-    }
-}
-
-
-export async function GetDataAnios() {
-    try {
-        let conn = null
-    if (process.env.NODE_ENV === 'LOCAL_DEV') {
-         conn = await createSSHConnection();
-    }
-    else {
-         conn = await connect();
-    }
-        const [results, fields] = await conn.query(`SELECT 
-        tipo, 
-        DATE_FORMAT(mes_actual, '%m-%Y') AS mes_actual, 
-        DATE_FORMAT(mes_actual, '%Y') AS anio, 
-        indicador 
-      FROM 
-        gassur_star.MV_INDICADORES_GENERALES_31350 
-      GROUP BY 
-        YEAR(mes_actual), 
-        MONTH(mes_actual), 
-        tipo 
-      ORDER by 
-        mes_actual;
-      `);
-
-        const groupedData = {};
-
-        // Agrupar los datos por tipo
-        results.forEach(item => {
-            const tipo = item.tipo;
-            const anio = item.anio
-            if (!groupedData[tipo]) {
-                groupedData[tipo] = {};
-            }
-            if (!groupedData[tipo][anio]) {
-                groupedData[tipo][anio] = [];
-            }
-            const obj = { mes_actual: item.mes_actual, indicador: item.indicador, anio: anio };
-            groupedData[item.tipo][item.anio].push(obj);
-        });
-
-
-
-        return await transformData(groupedData);
-
-
-    } catch (err) {
-        log_error(err)
-        console.log(err);
-        throw new Error(err)
-
-    }
-
-
-}
-
-export async function GetDataComunasAnios() {
-    try {
-        let conn = null
-    if (process.env.NODE_ENV === 'LOCAL_DEV') {
-         conn = await createSSHConnection();
-    }
-    else {
-         conn = await connect();
-    }
-        const [results, fields] = await conn.query(`SELECT 
-        DATE_FORMAT(comunales.mes_actual, '%m-%Y') AS mes_actual, 
-        DATE_FORMAT(comunales.mes_actual, '%Y') AS anio, 
-        comunales.emergencias_x as total_emergencia_comuna, 
-        comunales.emergencias_y as total_emergencia_comunay, 
-        comunales.comuna as DESCRIPCION_COMUNA, 
-        comunales.clientes_red as clientes_red, 
-        generales.indicador as indicador_general, 
-        comunales.indicador as indicador_por_comuna ,
-        comunales.tipo 
-      FROM 
-        gassur_star.MV_INDICADORES_COMUNALES_31350 comunales 
-        INNER JOIN gassur_star.MV_INDICADORES_GENERALES_31350 generales on generales.tipo = comunales.tipo 
-        and generales.mes_actual = comunales.mes_actual 
-      GROUP BY 
-      DESCRIPCION_COMUNA,
-      anio, 
-      mes_actual,
-        tipo order by mes_actual
-      `);
-
-        const groupedData = {};
-
-        // Agrupar los datos por tipo
-        results.forEach(item => {
-            const tipo = item.tipo;
-            const anio = item.anio;
-            const comuna = item.DESCRIPCION_COMUNA.replace(/\s/g, '_').toLowerCase();
-            if (!groupedData[tipo]) {
-                groupedData[tipo] = {};
-            }
-            if (!groupedData[tipo][comuna]) {
-                groupedData[tipo][comuna] = {};
-            }
-            if (!groupedData[tipo][comuna][anio]) {
-                groupedData[tipo][comuna][anio] = [];
-            }
-
-            const obj = { mes_actual: item.mes_actual, indicador: item.tipo, anio: anio, comuna: item.DESCRIPCION_COMUNA, total_emergencia_comuna: item.total_emergencia_comuna, total_emergencia_comunay: item.total_emergencia_comunay, clientes_red: item.clientes_red, indicador_general: item.indicador_general, indicador_por_comuna: item.indicador_por_comuna };
-            groupedData[tipo][comuna][anio].push(obj);
-        });
-
-
-
-        return await transformDataComunas(groupedData);
-
-
-    } catch (err) {
-        log_error(err)
-        console.log(err);
-        throw new Error(err)
-
-    }
-
-
-}
-export async function GetAniosDatagrafico() {
-    let conn = null
-    if (process.env.NODE_ENV === 'LOCAL_DEV') {
-         conn = await createSSHConnection();
-    }
-    else {
-         conn = await connect();
-    }
-    try {
-        const [results, fields] = await conn.query(`SELECT DISTINCT DATE_FORMAT(mes_actual, '%Y') as anios
-        FROM gassur_star.MV_INDICADORES_GENERALES_31350;
-      `);
-
-        return results;
-
-    } catch (err) {
-        log_error(err)
-        console.log(err);
-        throw new Error(err)
-
-    }
-
-
-}
-
-
-export async function GetDataComunas() {
-    let conn = null
-    if (process.env.NODE_ENV === 'LOCAL_DEV') {
-         conn = await createSSHConnection();
-    }
-    else {
-         conn = await connect();
-    }
-    try {
-        const [results, fields] = await conn.query(`SELECT comunales.comuna as DESCRIPCION_COMUNA FROM 
-        gassur_star.MV_INDICADORES_COMUNALES_31350 comunales 
-        GROUP BY DESCRIPCION_COMUNA;`);
-
-        return results;
-
-    } catch (error) {
-        log_error(error)
-        console.log(error);
-        throw new Error(error)
-    }
-}
-
-
-const transformData = async (data) => {
-    const dataInfo = await getindicadores();
-    const transformedData = {};
-
-    for (const type in data) {
-
-        transformedData[type] = {};
-
-        for (const year in data[type]) {
-            const indicadorData = Array.from({ length: 12 }, (_, i) => {
-                const monthData = data[type][year].find(item => parseInt(item.mes_actual.split('-')[0]) === i + 1);
-                return monthData ? monthData.indicador : 0;
+export async function  readDataProductos (params) {
+    return new Promise(async (resolve, reject) => {
+        try {
+           noStore();
+            const conn = await connect();
+            const [rows] = await conn.query('SELECT * FROM bodega.productos where estado="ACTIVO" ORDER BY fecha_creacion desc;');
+            let result = rows.map(result => {
+                result.fecha_creacion = result.fecha_creacion.toLocaleDateString('es-ES');
+                return Object.assign({}, result);
             });
-
-
-
-            transformedData[type][year] = {
-                data: indicadorData,
-                grupo: dataInfo[type].grupo,
-                nombre: dataInfo[type].nombre,
-                tipo: dataInfo[type].tipo,
-                anio: year,
-
-
-
-            };
+            resolve(result);
+            
+            resolve(rows);
+        } catch (error) {
+            reject(error);
         }
-    }
+    });
+}
 
-
-    return transformedData;
-
-
-};
-
-
-
-const transformDataComunas = async (data) => {
-    try {
-        const dataInfo = await getindicadores();
-        const transformedData = {};
-
-        for (const type in data) {
-
-            transformedData[type] = {};
-            for (const comuna in data[type]) {
-                transformedData[type][comuna] = {};
-
-                for (const year in data[type][comuna]) {
-                    const indicadorData = Array.from({ length: 12 }, (_, i) => {
-                        const monthData = data[type][comuna][year].find(item => parseInt(item.mes_actual.split('-')[0]) === i + 1);
-                        return monthData ? monthData.total_emergencia_comuna : 0;
-                    });
-                    transformedData[type][comuna][year] = {
-                        data: indicadorData,
-                        grupo: dataInfo[type].grupo,
-                        nombre: dataInfo[type].nombre,
-                        tipo: dataInfo[type].tipo,
-                        anio: year,
-                        clientes_red: data[type][comuna][year][0].clientes_red,
-                        total_emergencia_comuna: data[type][comuna][year][0].total_emergencia_comuna,
-
-                    };
-
-
-                }
-            }
-
-
+export async function  DeleteDataProductos (id) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const conn = await connect();
+            const [rows] = await conn.query(`UPDATE bodega.productos
+            SET  estado='ELIMINADO'
+            WHERE id=?;`, [id]);
+            resolve({res: 'ok'});
+            revalidatePath('/Crud_Productos/page');
+        } catch (error) {
+            reject({res: 'error' , error: error});
         }
-        return transformedData;
-    } catch (error) {
-        console.log(error)
+    });
+}
+
+export async function createData (){
+    const data = await getdata();
+   
+    
+    for (let i = 0; i < data.length; i++) {
+        // Code to iterate over each data item
+        const fecha = await randomDate(new Date(2020, 0, 1), new Date());
+        const cantidad_compra = await randomNum();
+        const precio_unitario_compra = await randomint();
+        const cantidad_vendidos = await randomNum0_200();
+        const cantidad = cantidad_compra - cantidad_vendidos;
+        
+        //precio_unitario_venta is the 30% of precio_unitario
+        const precio_unitario_venta = precio_unitario_compra * 1.3 ;
+        const precio_total = precio_unitario_compra * cantidad_compra;
+        const precio_venta_total = precio_unitario_venta * cantidad_vendidos;
+        const estado = 'ACTIVO'
+
+       
+        
+        const conn = await connect();
+        const [rows] = await conn.query(`INSERT INTO bodega.productos
+        ( nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado, fecha_creacion)
+        VALUES( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW());`,[data[i], fecha, cantidad_compra, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado]);
+        
+
+
+        // const [rows] = await conn.query(`INSERT INTO bodega.productos (descripcion, estado, fecha_creacion)`
     }
+    return {res: 'ok'};
 
+}
+//function that return a random date in mysql format
+async function randomDate(start, end) {
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+}
+//function that return a random numer between 100 and 200
+async function randomNum() {
+    return Math.floor(Math.random() * (200 - 100) + 100);
+}
+//function that return a int number between 5000 and 1000000
+async function randomint() {
+    return Math.floor(Math.random() * (1000000 - 5000) + 5000);
+}
 
+//function that return a random numer between 0 and 200
 
-};
-
-export async function GetDataAniocomuna() {
-    let conn = null
-    if (process.env.NODE_ENV === 'LOCAL_DEV') {
-         conn = await createSSHConnection();
-    }
-    else {
-         conn = await connect();
-    }
-    try {
-        const [results, fields] = await conn.query(`SELECT 
-        ROW_NUMBER() OVER (ORDER BY anio, DESCRIPCION_COMUNA) AS id,
-        YEAR(comunales.mes_actual) AS anio, 
-        SUM(comunales.emergencias_x) AS total_emergencia_comuna_x, 
-        MAX(comunales.emergencias_y) AS total_emergencia_comuna_y, 
-        comunales.comuna AS DESCRIPCION_COMUNA, 
-        comunales.clientes_red AS clientes_red,
-        comunales.indicador AS indicador_por_comuna,
-        comunales.tipo 
-    FROM 
-        gassur_star.MV_INDICADORES_COMUNALES_31350 comunales 
-    INNER JOIN 
-        gassur_star.MV_INDICADORES_GENERALES_31350 generales 
-        ON generales.tipo = comunales.tipo 
-        AND generales.mes_actual = comunales.mes_actual 
-    GROUP BY 
-        YEAR(comunales.mes_actual), comunales.comuna, comunales.tipo
-    ORDER BY 
-        anio, DESCRIPCION_COMUNA;
-      `);
-        let result = results.map(result => {
-            return Object.assign({}, result);
-        });
-
-        return result;
-    } catch (error) {
-        console.error(error);
-    }
+async function randomNum0_200() {
+    return Math.floor(Math.random() * (99 - 0) + 0);
 
 }
 
 
-export async function GetDataTablaComunas(anios, indicador) {
-    try {
-        let conn = null
-    if (process.env.NODE_ENV === 'LOCAL_DEV') {
-         conn = await createSSHConnection();
-    }
-    else {
-         conn = await connect();
-    }
-        const [results, fields] = await conn.query(`SELECT 
-        ROW_NUMBER() OVER (ORDER BY anio, DESCRIPCION_COMUNA) AS id,
-        YEAR(comunales.mes_actual) AS anio, 
-        SUM(comunales.emergencias_x) AS total_emergencia_comuna_x, 
-        MAX(comunales.emergencias_y) AS total_emergencia_comuna_y, 
-        comunales.comuna AS DESCRIPCION_COMUNA, 
-        comunales.clientes_red AS clientes_red,
-        comunales.indicador AS indicador_por_comuna,
-        comunales.tipo 
-    FROM 
-        gassur_star.MV_INDICADORES_COMUNALES_31350 comunales 
-    INNER JOIN 
-        gassur_star.MV_INDICADORES_GENERALES_31350 generales 
-        ON generales.tipo = comunales.tipo 
-        AND generales.mes_actual = comunales.mes_actual 
-    WHERE 
-         YEAR(comunales.mes_actual) IN (?) and comunales.tipo = ?
-    GROUP BY 
-        YEAR(comunales.mes_actual), comunales.comuna, comunales.tipo
-    ORDER BY 
-        anio, DESCRIPCION_COMUNA; `, [anios, indicador]);
-        let result = results.map(result => {
-            return Object.assign({}, result);
-        });
-        return result;
-    } catch (error) {
-        console.error(error);
-        throw new Error(error)
+export async function editData(data) {
+    console.log(data)
+    const id = data.id;
+    const nombre = data.nombre;
+    const fecha_Compra = data.fecha_Compra;
+    const cantidad_compras = data.cantidad_compras;
+    const precio_unitario_compra = data.precio_unitario_compra;
+    
+    const cantidad_vendidos = data.cantidad_vendidos;
+    const cantidad = cantidad_compras - cantidad_vendidos;
+    const precio_unitario_venta = data.precio_unitario_venta;
+    const precio_total = precio_unitario_compra * cantidad_compras;
+    const precio_venta_total = precio_unitario_venta * cantidad_vendidos;
+    
 
-    }
+    return new Promise(async (resolve, reject) => {
+        try {
+            const conn = await connect();
+            const [rows] = await conn.query(`UPDATE bodega.productos
+            SET nombre=?, fecha_Compra=?, cantidad_compras=?, precio_unitario_compra=?, cantidad=?, cantidad_vendidos=?,
+             precio_unitario_venta=?, precio_total=?, precio_venta_total=? WHERE id=?;`, [nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, id]);
+            resolve({res: 'ok'});
+            revalidatePath('/Crud_Productos/page');
+        } catch (error) {
+            reject({res: 'error' , error: error});
+        }
+    });
 
 }
+export async function createnewRow (data){
+    console.log(data)
+    const nombre = data.nombre;
+    const fecha_Compra = data.fecha_Compra;
+    const cantidad_compras = data.cantidad_compras;
+    const precio_unitario_compra = data.precio_unitario_compra;
+    
+    const cantidad_vendidos = data.cantidad_vendidos;
+    const cantidad = cantidad_compras - cantidad_vendidos;
+    const precio_unitario_venta = data.precio_unitario_venta;
+    const precio_total = precio_unitario_compra * cantidad_compras;
+    const precio_venta_total = precio_unitario_venta * cantidad_vendidos;
+    const estado = 'ACTIVO'
+    return new Promise(async (resolve, reject) => {
+        try {
+            const conn = await connect();
+            const [rows] = await conn.query(`INSERT INTO bodega.productos
+            ( nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado, fecha_creacion)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW());`,[nombre, fecha_Compra, cantidad_compras, precio_unitario_compra, cantidad, cantidad_vendidos, precio_unitario_venta, precio_total, precio_venta_total, estado]);
+            revalidatePath('/Crud_Productos/page');
+            resolve({res: 'ok'});
+            
+        } catch (error) {
+            reject({res: 'error' , error: error});
+        }
+    });
 
 
+}
+    
 
+
+async function  getdata() {
+
+     const data = [
+        'TUERCA HEX.5/16"-18 GR.5 C/SEGURO',
+        'KIT REPARACION 80 DIAMETRO MICROTEC',
+        'SOPORTE PIE SKF SY 510 M',
+        'PLADILENO 75x45x64MM P/CLASIFICADORES N',
+        'GUIAS 20x60x900MM TIPO T P/CLASIFICADORE',
+        'PERNO 1/4"x3" COCHE C/TUERCA',
+        'PERNO 1/4"x1" COCHE C/TUERCA',
+        'CABLE BTICINO S2505BL3',
+        'CALCULADORA CASIO FX-82',
+        'FOTOCELDA ELEC.XUL-H703535 TELEMECANIQU',
+        'FILTRO AGUA APO 055+',
+        'RPTO.FILTRO AT AF MALLA AT 1" P/VAPOR',
+        'ELEMENTO FILTRO PURTREX PX30-10',
+        'FLEX.R9 5/8x0,20 C/TERMINAL MA',
+        'PLANCHA AC.A37-24ES 5x1000x3000MM DIAM.',
+        'PANTALON VESTIR GABARDINA',
+        'RODAMIENTO TIMKEN 1280-1220 K',
+        'CONTACTOR 22KW K.MOELLER DIL-2M 46566',
+        'PINTURA LATEX AMARILLO RAL-1028',
+        'RODAMIENTO B/RIG SKF 6306 2Z-C3',
+        'CADENA ROD.SIMPLE 1.1/2" ANSI 120-1',
+        'RECTIFICADOR SEW BGE1.5 825-385-4',
+        'ROTULA SKF GEG 32 ES',
+        'JUEGO RUEDA CARRO SECADOR 230 X 85 MM',
+        'PORTA ELECTRODO 400A JACKSON A14HD',
+        'RODAMIENTO B/RIG SKF 6210 2Z-C3',
+        'TERMINAL OJO 10-12 AWG 4.4 MM.3M',
+        'POMEL 5/8"x90MM ACERO SAE 1045',
+        'CADENA 15 MM MOTOSIERRA',
+        'CANDADO ODIS 140',
+        'LIJA 80 3M MADERA',
+        'PIEDRA ESMERIL 9011 228,6X25X25 1C24R5',
+        'INTERRUPTOR 3x16A 25KA M.GERIN NS100N',
+        'RODAMIENTO SKF 7205 BECBP',
+        'RODAMIENTO B/RIG SKF 6003',
+        'ARMARIO MARINA 500X400X200 LEGRAND 35252',
+        'RODAMIENTO B/RIG SKF 6013 2Z',
+        'SOPORTE PIE SKF SY 70 TF',
+        'SENSOR FOTOELEC.RECEPTOR BANNER BMR248A',
+        'ANILLO GUIA SKF 10/100 FRB',
+        'ANILLO GUIA SKF 10/170 FRB',
+        'CONECTOR H1/4"NPTF ACERO',
+        'ADAPTADOR 4FPX / 2MP ACERO',
+        'VALVULA CON BIBINBA 24 V.DC ROSS W6077',
+        'VALVULA REG.FLUJO 1/2"NPT PARKER F800S',
+        'CHARNELA R-41-50 P/CILINDRO',
+        'LIMA PLANA 12" GRUESA',
+        'PERFIL CUAD.AC.A37-24ES 100x100x5MM',
+        'ABRAZADERA 1" CREMALLERA AC. GALVANIZADO',
+        'BIDON PLASTICO REFORZADO 20L',
+        'BROCAS 1-13MM P/ACERO',
+        'CORREA EN V PIX A 3780',
+        'SIERRA HUINCHA 7"x1,47MM 45MM',
+        'MUELA DIAMANT 113 1A1F 100-5-4-20 D64C75',
+        'PASADOR VICKERS 265425 PVB-15/10',
+        'ESMERIL ANGULAR 4-1/2" RYOBI',
+        'SIERRA HUINCHA 8" 1,47MM 50MM',
+        'SOPORTE PIE SKF SY 40 TF',
+        'BARNIZ ESMALTE NATURAL HEMPEL',
+        'ABRAZADERA T501 28-30 1" CON PERNO',
+        'MEDIO PASO 5/8" BS SIMPLE',
+        'PERNO 1/4"-20 x 3/4" CAB. HEX.SAE GR.5',
+        'PERNO M5-0,8x20MM CAB.HEX.GR.8.8',
+        'HUINCHA MEDIR 7,5M STANLEY',
+        'FILM 20"ANCHO DE 23 MICRONES',
+        'RODAMIENTO B/RIG SKF 6310 2Z-C3',
+        'CADENA TRANSP.2" 32B-1 2PUNT.41x75MM',
+        'CADENA TRANSP.4"ANSI ANSI B29-16 WH-124',
+        'CABLE 1X1/0AWG 1KV 90ºC XLPE/PVC SUPERFL',
+        'CARTRIDGE TONER HEWLETT PACKARD C4127A',
+        'SENSOR INDUCT.TELEMECANIQUE XS618B1PAL2',
+        'RETEN 100X125X12MM CRW1 NBR',
+        'BOBINA FRENO 220V SEW 875.232.X',
+        'CABEZA PULSADOR A.BRADLEY 800TN159R',
+        'INTERRUPTOR 3X63A M.GERING S/C60H',
+        'RODAMIENTO SKF 6317 Y-C 782',
+        'VALVULA DIR.4/3 VICKERS DG4V36CMUC660',
+        'TUERCA M10   C/SEGURO PLASTICO 1,25',
+        'RELOJ HORARIO LEGRAND REF.03752',
+        'RODAMIENTO SKF 6215 2RS1-C3',
+        'RODAMIENTO SKF 30213 A',
+        'PISTOLA SAGOLA CLASSIC LUX DEFFYNIK',
+        'PERNO M10 X 100 COCHE',
+        'CABLE RVK 4X4 M/M UNE21123',
+        'CORDON DE GOMA 4x12 AWG',
+        'PERNO M10 35 MM CABEZA AVELLANADA RECESO',
+        'BARRA CUAD.AC.ASTM A36 10x10MM',
+        'PERFIL CUAD.AC.A37-24ES 75x75x5MM',
+        'FLEXIBLE R2 1/4"x1,0 MTS.H6MM.-L',
+        'MANOMETRO 0-16 BAR 1/4" NPT 63MM.C/GLICE',
+        'PLADILENO 20 X 3000 X 50 MM RABALON',
+        'PERNO M9 40 MM.CABEZA HEXAG.1,25 PASO',
+        'PERNO HEXAGONAL 3/8x 1"',
+        'TORNILLO 3/8" X 1 CABEZA RANURADA',
+        'SENSOR XUL-H043539 REFLEX',
+        'PERNO 1/2"-13x5" CAB.COCHE ZINCADO',
+        'PRISIONERO M8 12 MM.ACERO CARBONO',
+        'RODILLO CHIPORRO 2"x5"',
+        'RELE SERIE 60 10 AMP.60.13.8.2',
+        'SOPORTE BRIDA SKF FYRP 2.7/16"H',
+        'TORNILLO 1/4" 2" ACERO ROSCALATA',
+        'TORNILLO 3/16" 2" ACERO ROSCALATA',
+        'LUBRICANTE SEP.ANTIADHERENTE AEROSOL HC',
+        'PERFIL ANG/LAM.AC.ASTM A37 40x40x5MM',
+        'ZUNCHO ZUNAR-100 AC.3/4"X0,58 ESM/NEGRO',
+        'ZUNCHO 19X0,5MM AC.MEDIA RES.ESM.NEGRO',
+        'ZUNCHO 3/4" ZUNAR-80 0,50MM SIN ESMALTAR',
+        'ZUNCHO ZUNAR-80 AC.5/8"X0,5 ESMAL/GRIS',
+        'CABLE 4X14AWG 500V 70° PVC TCC',
+        'FLEXIBLE 4SP 1"x1,80 MTS.H30-H30',
+        'FLEXIBLE 1"x1,55M R12 H30/H30',
+        'FLEXIBLE 4SP 1"x3,60 MTS.H30-FJX 90º',
+        'FLEXIBLE 4SP 1"x1,20 MTS.H30-H30',
+        'FLEXIBLE HID.1"x1,75M 4SP H30-16FJX 90º',
+        'FLEXIBLE 4SP 1"x1,95MTS.H30-HFJX 90º',
+        'MORDAZA RECTA SODERHAMNS 84139245',
+        'MORDAZA DER.SODERHAMNS 84129568',
+        'SIERRA CIRCULAR 400 X 3.5 X 145.8 Z=40',
+        'MORDAZA IZQ.SODERHAMNS 84129576',
+        'PORTA SEGMENTO SODERHAMNS 82075375',
+        'CUCHILLO BISELADO IZQ 71 X 9.5 X 42',
+        'CUCHILLO BISELADO DER 71 X 9.5 X 42',
+        'LACRE EN POLVO (ALTERNATIVA EN BARRA)',
+        'MEDIDOR HUMEDAD DIGITAL WAGNER L612',
+        'PALETA PARA MEDIDOR DE HUMEDAD',
+        'BARRA ROSCADA M12-1,75 A193-B7',
+        'VALVULA DIR.4/2 VICKERS DG4V32AMUC660',
+        'MODULO BANNER RWB4 25546',
+        'CORREA DENTADA 480 T5',
+        'PINZA FP-2 P/FUSIBLES',
+        'PERFIL ANG/LAM.AC.A37-24ES 20x20x3MM',
+        'PERFIL CUAD.AC.A37-24ES 40x40x2MM',
+        'BARRA CIL.AC.SAE-1020 16MM',
+        'SENSOR IND.IFM 3015-BPKG/II5284',
+        'DIENTE WIDIA 10,5x6x3,5MM RECTO C/SOL',
+        'PLANCHA ZINC LISO 0,4x1000x3000MM',
+        'VALVULA DIREC.VICKERS DG4V3-2A-MU-DN6-60',
+        'PERNO CABEZA HEXAGONAL M8 X 60',
+        'TUERCA CABEZA HEXAGONAL 5/8"',
+        'BARRA CIL.AC.A44/28H 6MM',
+        'SENSOR OPTICO SICK WT27',
+        'CORDON DE GOMA 4x14 AWG',
+        'VALVULA COMP.2" SW 800LBS A105/ST.',
+        'RELE CONTROL 24VCC FINDER 44.52',
+        'BASE SERIE 95 8 PATAS RIEL DIN',
+        'ETIQUETAS CODIGO DE BARRA 1000 UNIDADES',
+        'REPARACION LUM.HALURO 400W BHPI',
+        'TARJETA ELECTRONICA SODERHAMNS 89030928',
+        'MEDIO PASO 1.1/2" SIMPLE 24 B',
+        'DIENTE WIDIA 13x4,8x4MM RECTO C/SOL',
+        'DIENTE WIDIA 9,5x6x3MM B/DER.C/SOL.',
+        'GUARDAMOTOR 28-40A SIEMENS 3RV10314FA10',
+        'CORREA V 21/32"X13/32"x1321MM B-52',
+        'BOBINA  220VCA 10W DANFOSS 018Z6701',
+        'CORREA EN V A-67 DUNLOP',
+        'SENSOR FOTOELEC.SICK WT27-2F 112',
+        'CABLE 3X1,5MM2 SI ???',
+        'SEGURO OMEGA INTERIOR J-80',
+        'PIÑON B Z=13 3/4"BS 12B-1 AL EJE',
+        'ESMERIL DE 250x12x40  274866',
+        'CALZADO ZAPATO CUERO/PU P/ACERO',
+        'CARTRIDGE TONER HEWLETT PACKARD C4092A',
+        'PIÑON A Z=13 1.1/4" BS 20B-1 AL EJE 55MM',
+        'GUANTE NBR/ALGODON CORTO ELAST.LIVIANO',
+        'CODO OLEOHIDRAULICO 3/4x5/8 12MB-10MJ90º',
+        'RODAMIENTO R/C SKF 32008 XQ',
+        'PERFIL ANG.AC.A37-24ES 30x30x5MM',
+        'RODAMIENTO B/RIG SKF 607 2RSH',
+        'MANOMETRO 0-100 1/4 NPT 410771-3 BOURDON',
+        'FLEXIBLE HID.3/8"x0,6M R2AT H12MM/90º',
+        'PINTURA LATEX GREEN SW 1756',
+        'DISCO CENTRAL DERECH SODERHAMNS 81089385',
+        'DISCO CENTRAL IZQ. SODERHAMNS 81089393',
+        'CADENA TRANSP.2" 32B-1 PLACA/4 DIENT.',
+        'SOPORTE BRIDA UCF 214',
+        'RETEN 125X140X9/12MM AS NBR',
+        'RODAMIENTO B/RIG SKF 6314-C3',
+        'CONO FIJ.TAPER LOCK 2517-60MM',
+        'FLEXIBLE CAUCHO 3/4" H22H22 X 1.7',
+        'PERNO 1/2"-13 x 3.1/2" CAB.HEX.INOX.316',
+        'SOPORTE PIE UCP 211',
+        'PIÑON B Z=17 3/4"BS 12B-1 P/MEC.',
+        'ARANDELA PLANA M5 ACERO',
+        'PERNO 5/8"-11x3" CAB.HEX.',
+        'GRASERA RECTA 1/8" HILO FINO',
+        'TUERCA HEXAGONAL M14 SODERHAMNS 84129725',
+        'PERNO M20 50MM ACERO CABEZA HEXAGONAL',
+        'TUERCA HEX.M20 GR.8',
+        'RODAMIENTO FAG B 7207 CTDA.D4 UL',
+        'SELLO P/MOTOR HIDRAULICO CHAR-LYNN',
+        'CONECTOR 12MM ODx1/2"BSP ACERO',
+        'CONECTOR P/LISA 6MMx10MM OD AC.ZN',
+        'TUBING 4 MM PVC',
+        'TUBING 6 MM PVC',
+        'OBTURACION SKF Z 210',
+        'SENSOR TELCO SMT-8000-MG-5M',
+        'CADENA TRANSP.2,609"ANSI B29.16M WH-78',
+        'FOTOCELDA TELCO SMT8000MG 5M TRANSMISOR',
+        'VALVULA TERMOSTATICA 1-1/2" A 2" 4.5 BAR',
+        'MECANISMO INT.1.1/2"SPIRAX 503029',
+        'PERFIL U AC.NCHA37-24ES 150x50x5MM',
+        'SENSOR FOTOELÉCTRICO HONEYWELL 295415',
+        'CONECTOR HEMBRA 24V VICKERS 124-800',
+        'MUÑEQUERA ERGONONOMICA',
+        'RODAMIENTO TIMKEN 14125A/14276',
+        'MANGUITO DESM.SKF AHX 3222',
+        'GRASERA CON NIPLE',
+        'PLADILENO 20 X 3000 X 100 MM  ROBALON',
+        'CORREA,EN V:POLI V TRAPEZOIDAL,4/SPB-280',
+        'ADAPTADOR 1/4" ACERO 4MBSP-4MBSP',
+        'COMBINACION FILTRO REGULADOR 250 PSI',
+        'LAINA DE BRONCE 0.025mm x 150mm x 1000mm',
+        'LAINA BRONCE SAE-CDA-260 0,05x150MM',
+        'LAINA BRONCE SAE-CDA-260 0,01x150MM',
+        'LAINA DE BRONCE 0.15mm x 150mm x 1000mm',
+        'LAINA DE BRONCE 0.2mm x 150mm x 1000mm',
+        'LAINA DE BRONCE 0.5mm x 150mm x 1000mm',
+        'LAINA DE BRONCE 0.075mm x 150mm x 1000mm',
+        'TRIODO PODER 10V 160A EIMAC 3CX20000H3"',
+        'RODAMIENTO B/ANG SKF 7306 BEP',
+        'RODAMIENTO B/ANG SKF 3212 A',
+        'RODAMIENTO B/ANG SKF 3306 ATN9',
+        'RODAMIENTO B/ANG SKF 3202 ATN9',
+        'RODAMIENTO B/ANG SKF 3206 ATN9',
+        'RODAMIENTO B/ANG SKF 7313 BECBJ',
+        'MACHOS ROSCAR 3/16"-24 UNC',
+        'MACHOS ROSCAR 1/4"-20 UNC',
+        'FILTRO VAPOR Y 3/4" 600 LBS.',
+        'DISCO DURO 320GB 7200RPM',
+        'CINTA AISLANTE 3/4"FIBRA VIDRIO 3M 69',
+        'ENCHUFE H-3P+T 63A 380V LEGRAND 58724',
+        'TUBO FLUOR.40W 220V FA8 T12 L/BLANCA',
+        'CABLE 3x16AWG 600V 90°C SO-90',
+        'TERMINAL PLANO 14-16AWG 6,3MM AISL.',
+        'CONDUIT FLEXIBLE 1/2" ACERO/VAINA PVC',
+        'CONDUIT FLEXIBLE 2" CON REVEST.PVC',
+        'CONDUIT FLEX.2.1/2" C/REVEST.PVC',
+        'MOTOR CA 160KW 4P 34-1 B3 SIEMENS 1LA6',
+        'BLOQUE CONTACTO CUTLER 10250T3',
+        'INTERRUPTOR 3A 10KA C IEC-947 R/DIN',
+        'INTERRUPTOR 3x400A SQUARE-D LHL36400',
+        'INTERRUPTOR 3x250A WESTINGHOUSE HMCP250W',
+        'TERMINAL PODER 250MCM 1/2"x85,8MM',
+        'CABLE 3x16AWG 600V 90ºC XLPE/PVC XTCC',
+        'TERMINAL PODER 2/0AWG 3/8"x60,2MM',
+        'CONDUIT RIGIDO 1" ACERO GALVANIZADO',
+        'TERMINAL PODER 350MCM 1/2"x97,5MM',
+        'CONDUIT RIGIDO 1.1/2" AC.GALVANIZADO',
+        'LAMPARA HALOG.500W  R7S C8 118X10MM',
+        'CAJA METALICA 500 M/M  X 400 M/M  X 300',
+        'LAMPARA HALURO 250W 220V E40 TUB.',
+        'CABLE 1X6AWG 600V 90°C XLPE/PVC XCS',
+        'RIEL RUC 42X42X2,5MM AC.GALVANIZADO',
+        'PRENSA CABLE 3/4" GALVANIZADO',
+        'LAMPARA SODIO AP 250W 220V E40 TUB.',
+        'PARTIDOR 4-65W 220V PHILIPS S10',
+        'LAMPARA HALURO 400W E40 T/CLARA',
+        'CAJA ENCHUFE LEGRAND HYPRA 59844',
+        'CONTACTOR 200KW TELEMECANIQUE LC1F400M7',
+        'INTERRUPTOR 16A 10KA C IEC-947 R/DIN',
+        'INTERRUPTOR 3x32A 10KA D IEC-947 R/DIN',
+        'CINTA AISLANTE 3/4" GOMA EPR 3M 23',
+        'LAMPARA HALURO 250W 220V E40 TUB.CLARA',
+        'BORNE VIKING 10MM2 LEGRAND 37163',
+        'BORNE VIKING 16MM2 LEGRAND 37164',
+        'ENCHUFE HEMBRA 32A 380V LEGRAND 57618',
+        'ENCHUFE 3P+T 32A 380V LEGRAND 58128',
+        'BALLAST COMPENSADO 2x40W 220V',
+        'BALLAST 400 W. 220 V. PHILLIPS BSN400L1',
+        'PLACA AISLACION BORNES LEGRAND 39466',
+        'LAMPARA HALURO 1000W E40 BT56 M47 CLARA',
+        'ENCHUFE H-2P+T 16A 250V BTICINO 5180',
+        'CAJA LEGRAND 35502 400X300X160MM. METAL',
+        'RODAMIENTO B/RIG SKF 4203 ATN9',
+        'RODAMIENTO R/ROT SKF 21311 E',
+        'RODAMIENTO R/ROT SKF 22212 E',
+        'RODAMIENTO R/CIL SKF NU P206 ECP',
+        'RODAMIENTO R/C SKF 30204 J2Q',
+        'RODAMIENTO R/C SKF 30215 J2Q',
+        'RODAMIENTO R/C SKF 30305 J2',
+        'RODAMIENTO R/C SKF 31312 J2Q',
+        'RODAMIENTO R/C SKF 32210',
+        'RODAMIENTO R/C TIMKEN M12649/M12610',
+        'RODAMIENTO R/C TIMKEN JM207049/JM207010',
+        'MANGUITO FIJ.SKF H 222',
+        'MANGUITO FIJ.SKF HA 320',
+        'RODAMIENTO SKF 6002 2RS1 QE6',
+        'ANILLO FIJ.SKF FRB 12.5/160',
+        'MANGUITO FIJ.SKF H 309',
+        'RODAMIENTO B/RIG SKF 6304 Z',
+        'RODAMIENTO B/RIG SKF 6209 2Z',
+        'RETEN 60X80X10MM HMS4 NBR',
+        'RETEN 80x100x10MM CRW1 NBR',
+        'RETEN 30X50X8MM CRW1 NBR',
+        'RETEN 45x62x8MM HMSA10 NBR',
+        'RETEN 52X72X8MM HMS4 NBR',
+        'RETEN 85X110X12MM CRW1 NBR',
+        'RETEN 70X90X10MM CRWA1 NBR',
+        'RODAMIENTO B/RIG SKF 6004 2Z',
+        'AMPERIMETRO 0-150/300A 72X72 CELSA 33241',
+        'RODAMIENTO B/RIG SKF 6304 NR',
+        'RODAMIENTO B/RIG SKF 6306-C3',
+        'RETEN 70X85X8MM CRW1 NBR',
+        'RODAMIENTO SKF 6002 Z',
+        'RODAMIENTO R/CIL SKF NU 206 ECJ',
+        'RODAMIENTO B/RIG SKF 6311-C3',
+        'RODAMIENTO B/ROT SKF 2203 2RS1',
+        'RODAMIENTO B/RIG SKF 6205 2Z',
+        'RODAMIENTO B/RIG SKF 6206 NR',
+        'RODAMIENTO B/RIG SKF 6208 NR',
+        'RODAMIENTO B/RIG SKF 6218',
+        'RODAMIENTO B/RIG SKF 6301',
+        'RODAMIENTO B/RIG SKF 6305 NR',
+        'ABRAZADERA SP2-12PP-LI GR.2 12MM. DOS P',
+        'ABRAZADERA SP2-16PP-LI GR.2 16MM. DOS',
+        'RODAMIENTO B/RIG SKF 6312-C3',
+        'RODAMIENTO B/RIG SKF 6313-C3',
+        'ABRAZADERA SP3-20PP-LI  GR.3 20MM. DOS',
+        'RODAMIENTO B/RIG SKF 6405',
+        'RODAMIENTO B/RIG SKF 6406',
+        'RODAMIENTO B/RIG SKF 6407',
+        'RODAMIENTO B/RIG SKF 6409',
+        'RODAMIENTO R/ROT SKF 21309 E',
+        'RODAMIENTO R/ROT SKF 23222 CCKW33',
+        'RODAMIENTO R/C SKF 32212 J2',
+        'RETEN 80X110X12MM HMS4 NBR',
+        'RODAMIENTO R/C TIMKEN 46790/46720',
+        'BOLA 3/8" SKF RB-9.525',
+        'SOPORTE BRIDA SKF FY 40 TF',
+        'FUNDENTE ESTAÑO GASFITER',
+        'MANGUITO FIJ.SKF H 2322',
+        'ANILLO FIJ.SKF FRB 10/120',
+        'OBTURACION SKF TSN 522 G',
+        'ANILLO FIJ.SKF FRB 12,5/140',
+        'ANILLO FIJ.SKF FRB 12.5/150',
+        'TUERCA FIJ.SKF KM 7',
+        'TUERCA FIJ.SKF KM 11',
+        'TUERCA FIJ.SKF KM 15',
+        'ARANDELA RET.SKF MB 6',
+        'ARANDELA RET.SKF MB 7',
+        'ARANDELA RET.SKF MB 8',
+        'ARANDELA RET.SKF MB 10',
+        'ARANDELA RET.SKF MB 21',
+        'RETEN 45x65x8MM CRW1 NBR',
+        'RODAMIENTO B/RIG SKF 6216 2RSH',
+        'RODAMIENTO R/ROT SKF 22222 EK',
+        'RETEN 30X52X8MM HMS4 NBR',
+        'RETEN 42X72X8MM HMS4 NBR',
+        'RETEN 56X85X8MM HMS4 NBR',
+        'RETEN 60x80x8MM HMS4 NBR',
+        'CONECTOR 1/4"JIC37ºx1/4"NPTF ACERO',
+        'RODAMIENTO R/CIL SKF NUP 207 EC',
+        'RODAMIENTO R/CIL SKF NJ 210 EC',
+        'POTENCIOMETRO 2W 5KOHM BOURNS 3540S1502L',
+        'RETEN 3.3/8"X4.3/8"X3/8"CRWA1 NBR',
+        'RODAMIENTO R/C TIMKEN 44162/44348B',
+        'SOPORTE PIE SKF SNL 515 612',
+        'MANGUITO FIJ.SKF H 310',
+        'RODAMIENTO B/ROT SKF 2316 K-C3',
+        'RODAMIENTO B/RIG SKF 6213-C3',
+        'OBTURACION SKF TSN 512 G',
+        'RODAMIENTO R/C SKF 31311 J2Q',
+        'RETEN 1.3/8"X2.3/8"X5/16" CRW1 NBR',
+        'RODAMIENTO R/ROT SKF 21315 E',
+        'RODAMIENTO R/ROT SKF 22209 EK',
+        'RODAMIENTO B/RIG SKF 6211 2Z-C3',
+        'CABEZA ART.SKF SIQG 20 ES',
+        'RODAMIENTO R/C TIMKEN L44649Q/L44610Q',
+        'RODAMIENTO R/C TIMKEN LM67048/LM67010',
+        'ESCUADRA CO-B-50013 SECADOR',
+        'FERULA 30MM ABB 3300/72',
+        'CORREA V 1/2"X5/16"1194MM A-47',
+        'VALVULA COMP.1"NPT 800LB A105/HF',
+        'CODO ACERO INOX. 316  1.1/2" HILO B.S.P',
+        'CAD,D/TRANSM:RODILLO,1/2" PASO,BS 228,DO',
+        'CORREA V 16,3X13MM 5000MM SPB-5000',
+        'ESLABON C/CLIP 3/4" BS 12B-1/26',
+        'ESLABON C/CLIP 1.1/4"BS 20B-2/26',
+        'PERNO M8-1,25X25MM CAB.CIL.R/HEX 8.8',
+        'CORREA V 12,7X10X1320MM SPA-1320',
+        'ESLABON ACODADO 1.3/4" BS 28B-1/12',
+        'CAÑERIA ASTM A106 2.1/2"SCH.40',
+        'ESLABON C/CLIP 1/2" ANSI 40-1/26',
+        'ESLABON C/CLIP 5/8" ANSI 50-1/26',
+        'ESLABON ACODADO 1.1/4" ANSI 100-1/12',
+        'ESLABON C/CLIP 1.1/2" ANSI 120-1/26',
+        'CADENA ROD.DOBLE 3/4" ANSI 60-2',
+        'ABRAZADERA 5/16" AC.GALV.DIN 1142 CABLES',
+        'GRILLETE  GALV. 3/4" C/PASADOR ATORNILL',
+        'SEGURO OMEGA EXT.55MM DIN 471',
+        'SEGURO OMEGA INT.100MM DIN 472',
+        'TELA ESMERIL GR.80 1.1/2',
+        'ELEMENTO FLEX.REX OMEGA E5',
+        'TEE ACABADO GALVANIZADO  3/4" DIA ROSCA',
+        'TRABADOR ROSCAS ANAEROBICO LOCTITE 242',
+        'PERNO M16-2X70MM CAB.HEX.INOX 316',
+        'CORREA V 12,7X10MM 3150MM SPA-3150',
+        'ELEMENTO FLEX.REX OMEGA E10',
+        'SEGURO OMEGA INT.62MM DIN 472',
+        'TUERCA HEX.1/4"-20 UNC AISI 316',
+        'PIÑON B Z=21 1"BS 16B-1 AL EJE',
+        'TUERCA HEX.M12-1,75 SI 316',
+        'ESPARRAGO 16 MM. 2 MM. 750 MM. UNC.',
+        'PERNO M8 1,25 20 MM CAB.PLANA AVELL.RECE',
+        'MANGUERA 3/8" 250PSI NBR/REF.',
+        'TUERCA HEX.M16-2,0 316',
+        'PIEDRA ASENTAR KANEFUSA A 800 MANUAL',
+        'CADENA ROD.SIMPLE 1.1/2" BS 24B-1',
+        'ESLABON C/CLIP 1.1/4"BS 20B-3/26',
+        'MANGUERA 1/2"250PSI GOMA R/TEXTIL',
+        'VALVULA COMP.3/4"NPT 150LBS BZ',
+        'PERFIL CANAL U AC.A37-24ES 100x50x5MM',
+        'PLANCHA AC.A37-24ES 4x1000x3000MM',
+        'CORREA V 1/2"X5/16"1905MM A-75',
+        'CORREA V 21/32"X13/32"x1295MM B-51',
+        'CORREA V 21/32"X13/32"x1473MM B-58',
+        'CORREA V 21/32"X13/32"x1727MM B-68',
+        'CORREA V 21/32"X13/32"x1981MM B-78',
+        'PERNO 5/16"-18x3" CAB.HEX.SAE GR.5',
+        'PERNO 1/2"-13X2.1/2"CAB.CIL.R/HEX GR.5',
+        'CHISPERO',
+        'SELLADOR ROSCAS LOCTITE 570',
+        'ADHESIVO TRABADOR LOCTITE 609',
+        'PERNO 7/8"-9 x 5" CAB. HEX. SAE GR.5',
+        'PERNO M10-1,5X20MM CAB.HEX. ISO GR.8,8',
+        'PERNO M16-2x50MM CAB.HEX.GR.8,8',
+        'PRISIONERO M8-1,25x30MM REC.HEX. GR.8,8',
+        'PRISIONERO M8-1,25X40 MM. REC.HEX.GR.8.8',
+        'PRISIONERO M8-1,25x20MM REC.HEX. GR.8,8',
+        'PERNO 1/4" 20 1.1/2" CAB. RED.RAN. RECT',
+        'TUERCA HEX.M16-2,0 SI 8,8',
+        'TUERCA HEX.M20-2,5 SI GR.10,9',
+        'TUERCA HEX.M10-1,5 316',
+        'TUERCA HEX.5/8"-11 UNC AISI 316',
+        'ELECTRODO MMA 1/8" 3,25MM AWS E 312-16',
+        'LIJA AGUA PAPEL GR.180',
+        'ACOPLAMIENTO FLEX.REX OMEGA E20',
+        'CORREA V 1/2"X5/16"1803MM A-71',
+        'GUARDACABO AC.GALV.1/4" P/CABLES',
+        'SEGURO OMEGA EXT.60MM DIN 471',
+        'CADENA ROD.SIMPLE 1/2" BS 08B-1',
+        'CADENA ROD.TRIPLE 3/4" BS 12B-3',
+        'CADENA ROD.SIMPLE 2" BS 32B-1',
+        'CODO 90°AC.ASTM A234 2.1/2"BW SCH.40 RL',
+        'BROCA 8MM HSS P/CONCRETO',
+        'CORREA V 21/32"X13/32"x1118MM B-44',
+        'BARRA CIL.AC.SAE-4140 3/4"',
+        'EMPAQUET.POLIMERO MOLD.CHESTERTON 860',
+        'CABLE ACERO 3 MM DIA.REVEST.PVC',
+        'CINTA TRANSP.3/16"x1/16"x20"PLYLON 220/2',
+        'ESLABON C/CLIP 3/4"ANSI 60-1/26',
+        'CORREA V 9,7X8MM 1400MM SPZ-1400',
+        'ELEMENTO FILTRO AIRE MANN C-15165',
+        'CLIPS NR.1 TORRE',
+        'ACEITE LUB.BEL-RAY CHAIN-LUBE',
+        'PROTECTOR HERRUMBRE PES.AEROSOL HC',
+        'PANTALON MEZCLILLA 14.3/4 INDIGO',
+        'GAFAS,SIN MODIFICADOR:VISOR ALZABLE',
+        'LAPIZ PASTA AZUL',
+        'SOBRE,SIN MODIFICADOR:SACO,EXTRA OFICIO,',
+        'MÓD,SIN MODIFICADOR:ENT,184-250V',
+        'ELEMNT,P/FILTR:AIRE,L 24" X H 24" X ESP',
+        'VISOR,D/VIDRIO:RECTANGULAR GRADUADO,2" X',
+        'BBA,RECIPR:PISTÓN AXIAL',
+        'QUÍM,SIN MODIFICADOR:FENOLFTALEINA INDIC',
+        'CRONOM,SIN MODIFICADOR:',
+        'CARTRIDGE TINTA CANNON BJI 642',
+        'SENSOR,D/PROX:INDUCTIVO,12-48VCC,0-15MM',
+        'CARTCH,D/TIPOS LETRA:TINTA',
+        'ELEMNT,P/FILTR:FLUIDO HIDRÁULICO',
+        'CARTRIDGE HEWLETT PACKARD NEGRO 51629A',
+        'CARTRIDGE HEWLETT PACKARD COLOR 51649A',
+        'DESTACADOR AMARILLO',
+        'DESTACADOR VERDE',
+        'MARCADOR PLUMON PIZARRA AZUL',
+        'MARCADOR PLUMON PIZARRA ROJO',
+        'MARCADOR PLUMON PIZARRA NEGRO',
+        'LUB,SIN MODIFICADOR:SEPARADOR ANTIADHERE',
+        'LUB,SIN MODIFICADOR:PENETRANTE,AEROSOL L',
+        'CARPETA COLGANTE STANDARD RHEIN',
+        'CARPETA PLASTICA OFICIO TRANSPARENTE',
+        'CORRECTOR BORRADOR',
+        'LAPIZ PASTA ROJO',
+        'LÁPIZ,SIN MODIFICADOR:PASTA,NEGRO COLOR',
+        'GOMA BORRAR STAEDTLER 52650',
+        'CORCHETES TORRE 26/6 (5000 UNIDS)',
+        'CINTA,SIN MODIFICADOR:ADHSV,19MM (3/4")',
+        'ARCHIVADOR OFICIO L/ANCHO',
+        'ARCHIV,D/TARJ:LOMO ANCHO',
+        'FILTRO,COMBST:DI 19MM X DE 84MM X H 70,5',
+        'PECHR,SIN MODIFICADOR:ESP 1,4-1,6MM X 60',
+        'COMPT,SIN MODIFICADOR:ANARANJADO DE METI',
+        'CINTA IMPRESORA OKIDATA 320 NEGRO',
+        'LENTE,D/EQ  SEG:VISIÓN PANORÁMICA,CLARO,',
+        'REFLECT,D/ILUM:HALÓGENO,500W LAMP',
+        'INTERRUP,SIN MODIFICADOR:GENERAL,250V,10',
+        'TAPA,SIN MODIFICADOR:ANTIGOTEO,5 MICRAS,',
+        'SOP,BRIDA:FC3US29N,BOLA,2-7/16" DI,REDON',
+        'SOP,BRIDA:FC-247,BOLA,2-15/16" DI,REDOND',
+        'LINGUT,SIN MODIFICADOR:ALIMENTACIÓN',
+        'COMPT,SIN MODIFICADOR:FLOCULANTE',
+        'INTERRUP,D/NIV:125/250/480V 20A 50HZ 4W',
+        'CORREA,EN V:POLI V,5/5VX1060,106" DESARR',
+        'ELEMNT,P/FILTR:HIDRÁULICO',
+        'ROD,BOLA:4307 ATN9,RÍGIDO,DOBLE FILA,35M',
+        'ELEMNT,P/FILTR:HIDRÁULICO',
+        'CORREA,SINC:HTD 500-5M-16,PLANA DENTADA,',
+        'KIT,SIN MODIFICADOR:SELLO HIDRÁULICO,APL',
+        'KIT,SIN MODIFICADOR:SELLO HIDRÁULICO,APL',
+        'KIT,SIN MODIFICADOR:SELLO HIDRÁULICO,APL',
+        'RUEDA DENT,SIN MODIFICADOR:HUB ÚNICO,15D',
+        'RÓTULA,ESF:',
+        'ROD,SIN MODIFICADOR:6008 ZR,1 OBTURACIÓN',
+        'ROD,BOLA:6010 2RS,RÍGIDO,50MM DI,80MM DE',
+        'ROD,BOLA:6011,RÍGIDO,SENCILLO FILA,55MM',
+        'ROD,ROD CIL:NUP 207 C3,SENCILLO FILA,35M',
+        'ROD,BOLA:6015 2Z,RÍGIDO,SENCILLO FILA,75',
+        'ROD,BOLA:6016 2ZR C3,RÍGIDO,SENCILLO FIL',
+        'ROD,SIN MODIFICADOR:6017 2125',
+        'ROD,BOLA:6017 2RS C3,RÍGIDO,2 OBTURACION',
+        'ROD,BOLA:6017 2Z,RÍGIDO,SENCILLO FILA,85',
+        'ROD,SIN MODIFICADOR:613499',
+        'ROD,BOLA:6308 C2,RÍGIDO,SENCILLO FILA,C2',
+        'ROD,BOLA:6201 2RS1 C3,RÍGIDO,SENCILLO FI',
+        'ROD,BOLA:6202 2RS C3,RÍGIDO,SENCILLO FIL',
+        'ROD,BOLA:6202 2RSH-C3,RÍGIDO,SENCILLO FI',
+        'ROD,SIN MODIFICADOR:6202 2Z QES,2 OBTURA',
+        'ROD,SIN MODIFICADOR:6202 F20',
+        'ROD,BOLA:6203 J30 F20,RÍGIDO,SENCILLO FI',
+        'ROD,BOLA:6204 2RSH,RÍGIDO,SENCILLO FILA,',
+        'ROD,BOLA:6204 2RSH-C3,RÍGIDO,SENCILLO FI',
+        'ROD,BOLA:6205 2RS-C3,RÍGIDO,SENCILLO FIL',
+        'ROD,BOLA:6205 2RZ,RÍGIDO,SENCILLO FILA,2',
+        'ROD,BOLA:6205 2ZR C3,RÍGIDO,SENCILLO FIL',
+        'ROD,BOLA:6206 2RS1-C3,RÍGIDO,SENCILLO FI',
+        'ROD,BOLA:6206 2Z-C3,RÍGIDO,SENCILLO FILA',
+        'ROD,BOLA:6207,RÍGIDO,SENCILLO FILA,35MM',
+        'ROD,BOLA:6207 2RS1 C3,RÍGIDO,SENCILLO FI',
+        'ROD,BOLA:6208 2RS1-C3,RÍGIDO,SENCILLO FI',
+        'ROD,ROD CIL:',
+        'ROD,SIN MODIFICADOR:621 2Z,2 OBTURACIONE',
+        'ROD,BOLA:6210 Z,RÍGIDO,SENCILLO FILA,50M',
+        'ROD,BOLA:6309 2Z C4 IBC,RÍGIDO,SENCILLO',
+        'ROD,BOLA:627,RÍGIDO,SENCILLO FILA,7MM DI',
+        'ROD,BOLA:6305 YC 782,RÍGIDO,SENCILLO FIL',
+        'ROD,ROD CIL:',
+        'CARCS,SOP PIE:D.EJE 65MM X D 120MM,CONFG',
+        'SOP,BRIDA:3-7/16" DI,CIRCULAR,MONT.PERNO',
+        'RÓTULA,ESF:DI 45MM X DE 68MM X 32MM',
+        'ROD,BOLA:7516,RÍGIDO,SENCILLO FILA,ABIER',
+        'ROD,LIN:827450',
+        'ROD,BOLA:7100,CONTCT ANGULAR,SENCILLO FI',
+        'ROD,ROD CIL:7196,CÓNICO,SENCILLO FILA,50',
+        'ROD,ROD CIL:23711,A RÓTULA',
+        'ROD,BOLA:1545,CONTCT ANGULAR',
+        'ROD,SIN MODIFICADOR:3013 IP6',
+        'ROD,SIN MODIFICADOR:3013 TB P 63',
+        'ROD,SIN MODIFICADOR:HJLM 508710',
+        'ROD,ROD CIL:32013 X,CÓNICO,65MM DI,100MM',
+        'ROD,ROD CIL:NU 313 ECJ,SENCILLO FILA,65M',
+        'ROD,ROD CIL:NJ 205 EC,SENCILLO FILA',
+        'ROD,ROD CIL:394A/395A,CÓNICO,SENCILLO FI',
+        'ROD,BOLA:3304,CONTCT ANGULAR,DOBLE FILA',
+        'ROD,ROD CIL:NJ 214,70MM DI,125MM DE,24MM',
+        'ROD,ROD CIL:NU 316 C3 ETVP2,C3',
+        'ROD,SIN MODIFICADOR:5203 D',
+        'ROD,BOLA:6308 2RSR,RÍGIDO,SENCILLO FILA,',
+        'ROD,BOLA:A RÓTULA,SENCILLO FILA,40MM DI,',
+        'ROD,BOLA:1208 EK TNA,A RÓTULA',
+        'ROD,ROD CIL:NJ 206 ECP,SENCILLO FILA,30M',
+        'ROD,ROD CIL:NJ 215,75MM DI,130MM DE,25MM',
+        'ROD,ROD CIL:NJ 305 ECP,SENCILLO FILA,25M',
+        'ROD,BOLA:1216 2RS1,A RÓTULA,2 OBTURACION',
+        'ROD,BOLA:2012,A RÓTULA',
+        'ROD,ROD CIL:NU 219 ECJ,95MM DI,170MM DE,',
+        'ROD,SIN MODIFICADOR:22317 UK B33',
+        'ROD,D/INSERC:1025 1G,RODILLO,1 DI,TORN',
+        'FILTRO,AIRE:RESPIRADERO,DE 94MM X L 94MM',
+        'LÁMP,HID:HALURO METÁLICO,220V 50HZ,250W,',
+        'VENTL,SIN MODIFICADOR:CÁMARA SECADO,DE 1',
+        'MOTOR,SIN MODIFICADOR:VENTILADOR,18KW,38',
+        'KIT,SIN MODIFICADOR:O-RING,APLIC SALA DE',
+        'INTERRUP,SIN MODIFICADOR:PEDAL,220V,6A',
+        'RESRT,SIN MODIFICADOR:AIRE,BASES DE ALUM',
+        'SERVMOT,SIN MODIFICADOR:13W,230V,15 NM,I',
+        'SIERRA,CIRCLR:280MM D,2,2MM ESP,D.EJE 70',
+        'PLACA,MET:A 50MM X ESP 10MM,ACERO AL CAR',
+        'INTERRUP,D/CIRCT:AUTOMÁTICO,1P,6A,SECADO',
+        'BORNE,SIN MODIFICADOR:PORTAFUSIBLE,PVC',
+        'EJE,D/ENGR:CINTA SERRIO',
+        'RECTIFCD,SIN MODIFICADOR:',
+        'AMORTG,D/PRES:GAS,0.05MM',
+        'COMPT,SIN MODIFICADOR:SODA CAÚSTICA',
+        'CONEC,CABLE CONDCT:CURVO,1/2",90 GR,GALV',
+        'DIENT,SIN MODIFICADOR:WIDIA RECTO,A 4MM',
+        'ENCH,ELECTRC M:HEMBRA INDUSTRIAL,16A,220',
+        'ANILLO,SIN MODIFICADOR:V,NITRILO (NBR)',
+        'CAJA,ELECTRC:MARINA,300MM X 220MM X 160M',
+        'CHALC,SIN MODIFICADOR:GEÓLOGO,LONA',
+        'HUSILL,SIN MODIFICADOR:SIERRA',
+        'CUCH,SIN MODIFICADOR:METAL DURO MAT.CUCH',
+        'MOTOR,SIN MODIFICADOR:KILN',
+        'RELÉ,SIN MODIFICADOR:CONTROL',
+        'TARJ,D/CIRCT IMP:',
+        'CIL,SIN MODIFICADOR:DIENTE COJÍN ALIMENT',
+        'MOTOR,SIN MODIFICADOR:',
+        'DIODO,SIN MODIFICADOR:LÁSER',
+        'FUENT PODR,SIN MODIFICADOR:BORDEADORA,24',
+        'KIT,SIN MODIFICADOR:SELLO,APLIC HIDROCEN',
+        'SOP,BRIDA:CIRCULAR,MONT.PERNO 4,14MM D.P',
+        'BOLA,SIN MODIFICADOR:1-1/4" (31,75MM) D,',
+        'MANG,HID:D 3/8",0,8M L,H12S X H12S 90 GR',
+        'FUSIB,SIN MODIFICADOR:RETARDO,CLASE J,10',
+        'SENSOR,D/PROX:FOTOELÉCTRICO RECEPTOR,10-',
+        'FILTRO,SIN MODIFICADOR:VENTEO,L 5,3" X H',
+        'RÓTULA,ESF:DI 30MM X DE 75MM X A 22MM',
+        'INTERRUP,D/NIV:250V,MAGNÉTICO',
+        'ACEITE MOBIL MOBILTRANS HD30',
+        'ORING,SIN MODIFICADOR:HIDRÁULICO,2,5MM D',
+        'NIPLE,P/TUBR:HIDRÁULICO,1/4",BSP,ACERO',
+        'MANGUT,FIJ:50MM DI,81MM DE,A 57,5MM',
+        'MANGUT,FIJ:70MM DI,112MM DE,A 76MM',
+        'ARAND,D/PRES:RETENCIÓN,75MM DI,104MM DE,',
+        'ROD,BOLA:6202 2RSH,RÍGIDO,SENCILLO FILA,',
+        'ELECTRD,P/SOLD:AWS E-6010,5/32" D,ACERO',
+        'RÓTULA,ESF:DI 20MM X DE 35MM X 20MM',
+        'CAD,D/TRANSM:RODILLO,1-1/4" PASO,ANSI B2',
+        'MÓD,SIN MODIFICADOR:SAL TRIAC,74-276V 2A',
+        'CABLE,D/COMN:SEÑAL,305M L,(4) PARES SECC',
+        'CAND,SIN MODIFICADOR:PORTONES,40MM A.EST',
+        'PARADR,SIN MODIFICADOR:TRANSPORTADOR CAD',
+        'CIL,ACTDR LINL:NEUMÁTICO,4" CARR,1/2" NP',
+        'ANILLO GUÍA,SIN MODIFICADOR:CENTRIFUGACI',
+        'GUANTS,ANTCORTE:CORTO,ACERO INOXIDABLE 1',
+        'QUÍM,SIN MODIFICADOR:ÁCIDO FOSFÓRICO',
+        'SOFTWR,SIN MODIFICADOR:ADMINISTRADOR BAS',
+        'SOFTWR,SIN MODIFICADOR:ADMINISTRADOR BAS',
+        'ROD,BOLA:7011 CD/P4A,CONTCT ANGULAR,SENC',
+        'ROD,ROD CIL:30212,CÓNICO,SENCILLO FILA,6',
+        'ROD,BOLA:6212 2Z-C3,RÍGIDO,SENCILLO FILA',
+        'ROD,BOLA:6212-C3,RÍGIDO,SENCILLO FILA,60',
+        'ROD,BOLA:6216,RÍGIDO,SENCILLO FILA',
+        'ROD,BOLA:6304 2RS T,RÍGIDO,SENCILLO FILA',
+        'ROD,BOLA:6308-C3,RÍGIDO,SENCILLO FILA,40',
+        'ROD,BOLA:6308 Y/C 782,RÍGIDO,SENCILLO FI',
+        'ROD,BOLA:6311 2ZR C3,RÍGIDO,SENCILLO FIL',
+        'ROD,BOLA:7304 BEP,CONTCT ANGULAR,SENCILL',
+        'ROD,ROD CIL:22206 E,A RÓTULA,30MM DI,62M',
+        'ROD,ROD CIL:22226 EK,A RÓTULA,130MM DI,2',
+        'ROD,ROD CIL:22320 EK,A RÓTULA,100MM DI,2',
+        'ROD,ROD CIL:32209 J2,CÓNICO,SENCILLO FIL',
+        'ROD,ROD CIL:30206 J2Q,CÓNICO,30MM DI,62M',
+        'RÓTULA,ESF:DI 32MM X DE 76MM X A 32MM',
+        'PLACA,MET:A 100MM X L 6M X ESP 6MM,ACERO',
+        'PLACA,MET:A 1M X L 3M X 5MM,ACERO AL CAR',
+        'MÓD,SIN MODIFICADOR:SAL',
+        'DETEC,SIN MODIFICADOR:LUMINISCENCIA',
+        'FUSIB,SIN MODIFICADOR:CILÍNDRICO,1A,250V',
+        'FUSIB,SIN MODIFICADOR:RETARDO,110A,600V,',
+        'SOP,BRIDA:ROD BOLITAS',
+        'SOP,BRIDA:1-15/16" DI',
+        'ELEMNT,P/FILTR:HIDRÁULICO',
+        'RUEDA,DESBST:DE 125MM D,BANDA 6MM ESP,DI',
+        'RUEDA,DESBST:DE 125MM D,BANDA 2MM ESP,DI',
+        'RUEDA,DESBST:DE 125MM D,BANDA 2,5MM ESP,',
+        'PIEDRA,SIN MODIFICADOR:ESMERIL,DE 8" X D',
+        'ÁNG,ESTRUCT:L 6,0M X ESP 4MM X SECC 50MM',
+        'CAD,TRANSP:',
+        'MÓD,SIN MODIFICADOR:4 SAL,24VCC ALIM',
+        'PALAN,SIN MODIFICADOR:COMANDO ELECTROMEC',
+        'SEMACOPLM,EJE:ACOPLE DENTADO,NYLON',
+        'SEMACOPLM,EJE:ACOPLE DENTADO,NYLON',
+        'CABLE,ELECTRC:F,1 CALIB,250 MCM,600V @ 9',
+        'LÁMP,INCAND:LINTERNA,3V,BI-PIN BASE',
+        'PARTDR,D/LÁMP:LAMP HALURO METÁLICO,220V,',
+        'BALST,SIN MODIFICADOR:INTERIOR,250V 50HZ',
+        'INTERRUP,D/CIRCT:TERMOMAGNÉTICO,660/690V',
+        'BLOQE,CONTAC:AUXILIAR,690V 50/60HZ,10A,2',
+        'FILTRO,ACEITE:UNID HIDRÁULICA,D 4" X H 2',
+        'ADAPTD,D/TUBR:JLA,38MM,BSP,ACERO',
+        'ADAPTD,D/TUBO:UDA HIDRÁULICO RECTO,30MM,',
+        'JG ORNG,SIN MODIFICADOR:CAJA MILIMÉTRICO',
+        'VÁLV,SIN MODIFICADOR:CONTRA BALANCE,1-1/',
+        'BOB,ELECTRC:ELECTROVÁLVULA,24VCC 30W',
+        'BOB,ELECTRC:CONTROL,VÁLVULA,24VCC 38W',
+        'ARAND,P/SELL:1-1/2" BSP,1-1/2" DI,2-5/16',
+        'ARAND,P/SELL:1-1/4" BSP,42,9MM DI,52,4MM',
+        'ARAND,P/SELL:1/4" BSP,13,74MM DI,20,57MM',
+        'MANOM,SIN MODIFICADOR:0-10 BAR',
+        'SENSOR,SIN MODIFICADOR:NIVEL,24VCC ENT,',
+        'MANOM,SIN MODIFICADOR:0-16 BAR',
+        'VOLANT,SIN MODIFICADOR:INERCIA,15',
+        'SOP,BRIDA:CUADRADO,MONT.PERNO 4,M20 D.PE',
+        'ANILLO,D/RETEN:SEGURO OMEGA INTERIOR,DE',
+        'CAD,TRANSP:RODILLO DE CHAVETA,H 70MM X E',
+        'CAD,TRANSP:PLACA RECTA,100MM,ISO R 1977/',
+        'SOP,TENSR:L 144MM X H 114MM',
+        'FITTNG,GRASR:RECTA (H1),M6 X 1,L 14MM, L',
+        'TORNLL,C/CABZ:M8 D,1,25MM,40MM L,AVELLAN',
+        'PERNO,SIN MODIFICADOR:M20 D,2,5MM,100MM',
+        'TUERCA,HEX:AUTOBLOQUEANTE,3/4" D,10 UNC,',
+        'TORNLL,AUTOROSC:M12 D,1-1/4" L,ACERO GAL',
+        'CUCH,SIN MODIFICADOR:BUTT END REDUCER,60',
+        'EJE,SIN MODIFICADOR:CARDÁN,ACERO',
+        'RÓTULA,ESF:',
+        'POTENCMT,SIN MODIFICADOR:1K OHM',
+        'SENSOR,D/PROX:FOTOELÉCTRICO,10-30VCC,D 1',
+        'BOB,ELECTRC:VÁLVULA DIRECCIONAL,24V',
+        'CARTRIDGE TINTA CANON BC-05 COLOR',
+        'RÓTULA,ESF:DI 25MM X DE 42MM X A 25MM',
+        'CEMNT,SIN MODIFICADOR:VULCANIZADOR,DISPE',
+        'IMPRIMD,D/SUPERF:ACTIVADOR AEROSOL,VERDE',
+        'FUENT PODR,SIN MODIFICADOR:MEDIDOR DE HU',
+        'FUENT PODR,SIN MODIFICADOR:MEDIDOR DE HU',
+        'BOQ,P/SOPLT:PORTAELECTRODO,1/4"',
+        'CANAL,ESTRUCT:A 80MM X L 6,0M X 40MM X E',
+        'CAFE NESCAFE 170GR',
+        'AZUCAR GRANULADA',
+        'LOMO ADHESIVO ARCHIVADOR OFICIO',
+        'PEGAMENTO STIC FIX 20 GRS',
+        'PERFORADORA 2 AGUJEROS',
+        'MARCADOR PLUMON PIZARRA VERDE',
+        'PORTA CLIPS',
+        'PORTA TARJETAS VINILICO',
+        'SACA CORCHETE',
+        'SEPARADOR 6 POS.CARTULINA CARTA',
+        'SEPARADOR 6 POS.CARTULINA OFICIO',
+        'ARCHIVADOR LETRA L/ANCHO TORRE 518-L',
+        'CLIP,SIN MODIFICADOR:APRETADOR,13MM (1/2',
+        'APRETADORES BINDER CLIP NEGRO 20,4 MM (1',
+        'APRETADORES BINDER CLIP NEGRO 50,1 MM (2',
+        'BLOCK CARTA 80 H. PREPICADO Y PERFORADO',
+        'CORCHETERA TORRE MODELO B-7',
+        'BLOC,D/PAPEL:UNIVERSITARIO,21CM X 25,5CM',
+        'DISCO,MAGN:DISKETTE,3-1/2"',
+        'BORRADOR PIZARRA BLANCA TAMAÑO MEDIANO',
+        'BEBIDA,SIN MODIFICADOR:TÉ,BOLSITA',
+        'TE HIERBAS',
+        'MOTOR,CA:75 HP (55KW),380V,101A,2950 RPM',
+        'MOTOR,CA:125 HP (90KW),380V,180A,2950 RP',
+        'LAPIZ CRAYON CERA AMARILLO',
+        'CARTRIDGE TINTA CANON BC-21 COLOR',
+        'CARTRIDGE TINTA CANON BC-21 NEGRO',
+        'CARTRIDGE HEWLETT PACKARD 51626A NEGRO',
+        'ETIQUETA ADHESIVA AVERY MEDIDAS DIVERSAS',
+        'LAPIZ CORRECTOR LIQUID PAPER',
+        'LAPIZ PORTAMINAS 0,5MM PILOT H-1010',
+        'CARTRIDGE TINTA CANON BC-02',
+        'CARTCH,D/TIPOS LETRA:TONER',
+        'DESODORANTE AMBIENTAL AEROSOL',
+        'GALLETA SODA FAMILIAR',
+        'JUGO FRUTAS',
+        'CORREA,EN V:MÚLTIPLE',
+        'DISPOST,SIN MODIFICADOR:PRESIÓN',
+        'RESRT,SIN MODIFICADOR:CUCHILLA',
+        'AMORTG,D/CHOQ:',
+        'ROD,BOLA:',
+        'COJÍN,SIN MODIFICADOR:CILINDRO',
+        'FUNDA,SIN MODIFICADOR:CAUCHO',
+        'RESRT,SIN MODIFICADOR:PRESIÓN',
+        'BOLA,SIN MODIFICADOR:',
+        'CORREA,SINC:16T10/1150,SINCRÓNICO FLEXIB',
+        'RELÉ,D/RETAR TMP:',
+        'DETEC,SIN MODIFICADOR:ESCÁNER',
+        'PLACA,SIN MODIFICADOR:BLOQUEADO',
+        'MORDD,SIN MODIFICADOR:SUJECIÓN',
+        'ROD,BOLA:6021,RANURAS PROFUNDAS RADIALES',
+        'PERNO,MÁQ:5/8" D,11 UNC,5" L,HEX CAB,ACE',
+        'PERNO,MÁQ:M16 D,2MM,65MM L,HEX CAB,ACERO',
+        'DILYNT,SIN MODIFICADOR:PARTÍCULAS LÍQUID',
+        'RELÉ,SIN MODIFICADOR:CONTROL MINIATURA,5',
+        'ENCH,ELECTRC H:BASE RELÉ,TORNILLO TERMIN',
+        'MANOM,SIN MODIFICADOR:0-60 BAR',
+        'TUBR,SIN MODIFICADOR:1/4",COBRE',
+        'ORING,SIN MODIFICADOR:HIDRÁULICO,16M DI,',
+        'NIPLE,P/TUBR:RECTO,3/8"-18 H/PG X 3/8"-1',
+        'ROD,BOLA:6304 2Z C3,RÍGIDO,SENCILLO FILA',
+        'ROD,ROD CIL:NU 322 ECJ-C3,SENCILLO FILA,',
+        'SOPORTE BRIDA "KOYO" UCFC-216',
+        'FRENO,SIN MODIFICADOR:MOTOR,55 NM TORQ,3',
+        'TAPA,SIN MODIFICADOR:LADO MOTOR',
+        'ESPRRG,SIN MODIFICADOR:DESEMPALILLADORA',
+        'BUJE SEW 135.073.0',
+        'RESRT,SIN MODIFICADOR:FRENO',
+        'EJE,SIN MODIFICADOR:SAL DESEMPALILLADORA',
+        'TORNLL,C/CABZ:M10 D,1,5MM,65MM L,AVELLAN',
+        'PERNO,SIN MODIFICADOR:3/8" D,16 UNC,2-1/',
+        'ADAPTD,TUB A TUBR:RECTO,3/4"-16 UNF TAM.',
+        'ADAPTD,D/TUBR:HIDRÁULICO,1" X 16MM,NPT,A',
+        'CODO,SIN MODIFICADOR:ADAPTADOR,1/4",NPT,',
+        'ADAPTD,D/TUBR:RECTO,1/4"-18 H/PG,MNPTF X',
+        'RUEDA,SIN MODIFICADOR:GUÍA,DI 4" X DE 9"',
+        'RESRT,SIN MODIFICADOR:FRENO,56,6MM X 14,',
+        'RESRT,SIN MODIFICADOR:FRENO,55,75MM X 14',
+        'PLACA,MET:A 1000MM X L 3000MM X ESP 2MM,',
+        'INTERRUP,LIM:240V 1,5A 50/60HZ,DPST,ÉMBO',
+        'MOTOR,HID:742 RPM',
+        'CERRAD,SIN MODIFICADOR:CIERRE',
+        'MANOM,SIN MODIFICADOR:UNID HIDRÁULICA TO',
+        'PLACA,SIN MODIFICADOR:DIENTE WIDIA,A 5,5',
+        'PLACA,SIN MODIFICADOR:DIENTE WIDIA,A 4MM',
+        'EJE,SIN MODIFICADOR:SAL',
+        'PISTÓN,SIN MODIFICADOR:SERVO',
+        'BUJE,SIN MODIFICADOR:AMORTIGUADOR,DI 14M',
+        'PERNO,SIN MODIFICADOR:PRISIONERO,M8 D,1,',
+        'PERNO,MÁQ:M10 D,1,5MM,60MM L,CUADRADA CA',
+        'VÁLV,DIR:3/4" TAM.TUBE,20MM D.ORIFC,2 VÍ',
+        'ROD,BOLA:7207 CD/P4ADT,RÍGIDO CONTCT ANG',
+        'PERNO,SIN MODIFICADOR:M6 D,50MM L,PLANA',
+        'PERNO,SIN MODIFICADOR:M5 D,50MM L,REDOND',
+        'PLACA,MET:A 25MM X ESP 3MM,ACERO AL CARB',
+        'ELEMNT,P/FILTR:12 MICRÓN',
+        'INTERRUP,D/CIRCT:TERMOMAGNÉTICO,400V,3P,',
+        'MANG,HID:D 1/2",0,8M L,8-8 MP (MNPT) X 8',
+        'MEDD,SIN MODIFICADOR:HUMEDAD EN LÍNEA,DI',
+        'RUEDA DENT,SIN MODIFICADOR:DESENREDADOR,',
+        'ANILLO,POSC:FIJACIÓN,DI 101MM X DE 110MM',
+        'ANILLO,POSC:FIJACIÓN,DI 101MM X DE 110MM',
+        'MANGUT,FIJ:',
+        'TAPA,SIN MODIFICADOR:SOPORTE,DE 102MM X',
+        'TRAMPA,SIN MODIFICADOR:LÍNEA SECADO,40MM',
+        'MANG,HID:D 1/2",2,8M L,8FJX90 X 8FJX,CAU',
+        'MANG,HID:D 1/2",1,5M L,HEMBRA JIC 8FJX90',
+        'ADAPTD,D/TUBO:HIDRÁULICO,7/8",MACHO JIC,',
+        'SACO,SIN MODIFICADOR:AIRE DE ELEVACÍON R',
+        'SACO,SIN MODIFICADOR:AIRE DE ELEVACÍON R',
+        'ELEMNT,P/FILTR:',
+        'SUJETD,SIN MODIFICADOR:CUCHILLO',
+        'UNIÓN,AMERCN:LÍNEA ALIM TINAS GENERADORA',
+        'MEDD,D/PRES:0-10 BAR,63MM TAM.IND,1/4" N',
+        'MOTOR,CA:1,1KW (1,5 HP),220/380V,2,3A,14',
+        'RELÉ,D/SOBREC:AUXILIAR,16A 230V,1NA-1NC,',
+        'BBA,SIN MODIFICADOR:PRES,L 80CM,0-600 PS',
+        'SIERRA,D/COPA:D 400MM,40,ACERO MAT.CUCH',
+        'SIERRA,BANDA:A 6" (152,4MM) X 1,24MM',
+        'MOTOR,CA:5 HP (4KW),380V,3FASE,50HZ,8,9A',
+        'MOTOR,CA:7 HP (5,5KW),380V,3FASE,50HZ,11',
+        'MOTOR,CA:7 HP (5,5KW),690VY, 380/400/415',
+        'MOTOR,CA:7,5KW,230V, 400/415VY, 380-660V',
+        'MOTOR,CA:15 HP (11KW),400/415V, 690VY, 3',
+        'MOTOR CA 90KW 4P 280S B3 ABB M2CA280SMA4',
+        'PISTÓN,SIN MODIFICADOR:SERVO,L 6CM,ACERO',
+        'MANGA,SIN MODIFICADOR:SERVO',
+        'PLACA,D/FIJ COJNT:',
+        'PLACA,SIN MODIFICADOR:VÁLVULA,D 15CM,ACE',
+        'PLACA,SIN MODIFICADOR:VÁLVULA,D 15CM,ACE',
+        'KIT,SIN MODIFICADOR:SELLO EJE,APLIC CEPI',
+        'TARJ,D/CIRCT IMP:',
+        'CONEC,ELECTRC:ZÓCALO INDUSTRIAL',
+        'CONEC,CABLE CONDCT:ZÓCALO,5MM-11MM,TORNI',
+        'BASE,SIN MODIFICADOR:CONECTOR',
+        'CONEX,D/PRUEB:2" L',
+        'SELLO,ACEITE:60MM DI,85MM DE,8MM A,NITRI',
+        'PERNO,MÁQ:3/8" D,16 UNC,3" L,HEX CAB,ACE',
+        'PERNO,MÁQ:3/8" D,16 UNC,4" L,HEX CAB,ACE',
+        'ROD,ROD CIL:CÓNICO,SENCILLO FILA',
+        'ROD,ROD CIL:M804049,CÓNICO,SENCILLO FILA',
+        'ROD,ROD CIL:30309 J2Q,CÓNICO,SENCILLO FI',
+        'ARAND,PLANA:M4,ACERO',
+        'VENTILADOR SEW 135.518.X',
+        'MÓD,SIN MODIFICADOR:MÓDULO SEGMENTO',
+        'ACOPLAM,SIN MODIFICADOR:ESTRELLA MACHÓN',
+        'TUBO,ESTRUCT:A 100MM X ESP 6MM X 100MM,C',
+        'SUJETD,SIN MODIFICADOR:CUCHILLO,15"',
+        'SUJETD,SIN MODIFICADOR:CUCHILLO',
+        'SUJETD,SIN MODIFICADOR:CUCHILLO',
+        'TORNLL,SIN MODIFICADOR:AJUSTE,M14 D,2MM,',
+        'CUCH,SIN MODIFICADOR:ESTRIADO,1-1/4" X 3',
+        'INTERRUP,D/CIRCT:MAGNÉTICO,380V,28-37A',
+        'TRAJE,SIN MODIFICADOR:BUZO,OXFORD 210, F',
+        'RESRT,SIN MODIFICADOR:ASERRADERO,M20 X 2',
+        'ROD,D/INSERC:',
+        'SOP,BRIDA:CIRCULAR,MONT.PERNO 4',
+        'KIT,SIN MODIFICADOR:SELLO,APLIC CIL NEUM',
+        'CABZ,SIN MODIFICADOR:HIDROCENTRANTE,DI 4',
+        'CONECT T,P/TUBO:ADAPTADOR,3/4",MACHO JIC',
+        'VÁLV,DIR:',
+        'ELEMNT,P/FILTR:AIRE,DI 6" X DE 11" X L 1',
+        'ARAND,SIN MODIFICADOR:ESTRIADA,D 12MM,AC',
+        'VÁLV,DIR:1/2" TAM.TUBE,SOLENOIDE OPERAD,',
+        'VÁLV,DIR:1/2" TAM.TUBE',
+        'ADAPTD,D/TUBO:RESIERRA,3/8" X 12MM,BSP,A',
+        'PANEL,SIN MODIFICADOR:CAJA DERIVACIÓN,36',
+        'IMP,D/BBA:BRONCE',
+        'EMPAQUET,SIN MODIFICADOR:BOMBA',
+        'VÁLV,DIR:4 VÍAS,ELÉCTRICO OPERAD',
+        'CABLE,ELECTRC:CONTROL,1 CALIB,18 AWG,200',
+        'TUBO,SIN MODIFICADOR:FLEXIBLE,1/2",METÁL',
+        'SELLO,ACEITE:110MM DI,130MM DE,12MM A,NB',
+        'SELLO,ACEITE:90MM DI,120MM DE,12MM A,NBR',
+        'CARRIL,SIN MODIFICADOR:19MM X 35MM X 100',
+        'PERNO,MÁQ:M24 D,3MM,200MM L,HEX CAB,GR 8',
+        'CONEX,SIN MODIFICADOR:CADENA',
+        'GUÍA,SIN MODIFICADOR:CADENA',
+        'SUJETD,SIN MODIFICADOR:SELLO',
+        'CONO,SIN MODIFICADOR:CEPILLADORA',
+        'CUB,D/ROD:CEPILLADORA',
+        'SOP,D/FUSBL:BORNERA TIPO FUSIBL',
+        'CABLE,SIN MODIFICADOR:INTERFAZ CALIBRADO',
+        'SIERRA,BANDA:A 5" (127MM) X ESP 1,2MM',
+        'SELLO,ACEITE:OBTURACIÓN,85MM DI,140,1MM',
+        'MIRILL,SIN MODIFICADOR:D 12 X 3/4" (HILO',
+        'ROD,SIN MODIFICADOR:PVE 19-RWQ18-30',
+        'SECCNDR,SIN MODIFICADOR:TRIPOLAR,380V,24',
+        'SOP,BRIDA:CUADRADO',
+        'BBA,SIN MODIFICADOR:TRASVASIJE,0,45 L/CI',
+        'AMARRE,SIN MODIFICADOR:ZUNCHO,A 5/8" (16',
+        'VÁLV,SIN MODIFICADOR:CALEFACCIÓN,DN80,10',
+        'CHAVT,SIN MODIFICADOR:DESCORTEZADOR,L 1M',
+        'CHAVT,SIN MODIFICADOR:PARTIDA,L 1M X ESP',
+        'ANILLO,D/RETEN:SEGURO OMEGA,D 50MM',
+        'RELÉ,SIN MODIFICADOR:BAÑO MECANIZADO,24V',
+        'TELA,SIN MODIFICADOR:ESMERIL',
+        'SENSOR,D/PROX:INDUCTIVO,12-48VCC,D 30MM,',
+        'ELEMNT,P/FILTR:HIDRÁULICO,D 3,66" (93MM)',
+        'SIERRA,BANDA:1" X 7MM X 0,6MM',
+        'KIT,SIN MODIFICADOR:SELLO',
+        'FUSIB,SIN MODIFICADOR:CILÍNDRICO,8A,500V',
+        'MALLA,SIN MODIFICADOR:A 2000MM X L 1000M',
+        'CODO,D/TUBR:OLEOHIDRÁULICO,1/2",MACHO NP',
+        'CONEC,D/TERM:REDONDO,4 AWG,COMP CON.COND',
+        'CAD,TRANSP:ACODADA,2.25" L,3,075",B29.16',
+        'MECANSM,SIN MODIFICADOR:RECIRCULACIÓN',
+        'CARRO,SIN MODIFICADOR:MTR 45',
+        'KIT,SIN MODIFICADOR:SELLO,APLIC CIL HIDR',
+        'MANG,HID:D 1",1,7M L,C/H RECTAS,SAE 100',
+        'ELEMENTO FILTRO INGERSOLL-RAND 39474887',
+        'ELEMNT,P/FILTR:',
+        'ESPRRG,SIN MODIFICADOR:',
+        'PLACA,SIN MODIFICADOR:DESGASTE',
+        'CORREA,EN V:15J-3000-5',
+        'CORREA,EN V:TRAPEZOIDAL,A-61,63" DESARRL',
+        'SUJETD,SIN MODIFICADOR:CUCHILLO',
+        'SUJETD,SIN MODIFICADOR:CUCHILLO',
+        'SOPORTE CUCHILLO RH SODERHAMNS 82085507',
+        'SUJETD,SIN MODIFICADOR:CUCHILLO',
+        'PIZARR,SIN MODIFICADOR:POLING,2"',
+        'TECLD NUM,SIN MODIFICADOR:DIGITAL',
+        'VÁLV,ALIVIO:HIDRÁULICA,70-415 BAR (1000-',
+        'ROD,BOLA:6311 2Z/C3 HT51,RÍGIDO,SENCILLO',
+        'ROD,BOLA:6209 2Z/C3 HT51,RÍGIDO,SENCILLO',
+        'CONEC,D/TERM:PUNTA,0,50MM CUADRADOS,CON',
+        'CONEC,D/TERM:PUNTA,0,75MM CUADRADOS,CON',
+        'CONEC,D/TERM:PUNTA,1MM CUADRADO,COMP CON',
+        'CONEC,D/TERM:PUNTA,4MM CUADRADOS,COMP CO',
+        'CONEC,D/TERM:PUNTA,6,0MM CUADRADOS,COMP',
+        'CONEC,D/TERM:PUNTA,16MM CUADRADOS,COMP C',
+        'CONEC,D/TERM:PUNTA,25MM CUADRADOS,COMP C',
+        'PINTR,SIN MODIFICADOR:ESMALTE EPÓXICO,NE',
+        'PINTR,SIN MODIFICADOR:ESMALTE EPÓXICO,CA',
+        'PINTR,SIN MODIFICADOR:ESMALTE EPÓXICO,AZ',
+        'PINTR,SIN MODIFICADOR:ESMALTE EPÓXICO,VE',
+        'CABLE,ELECTRC:CONTROL,7 CALIB,16 AWG,600',
+        'ROD,BOLA:61812,RÍGIDO,SENCILLO FILA,60MM',
+        'ROD,ROD CIL:NU 312 ECJ,SENCILLO FILA,60M',
+        'SELLO,ACEITE:70MM DI,120MM DE,14MM A,NBR',
+        'PERNO,MÁQ:1/2" D,13 UNC,4-1/2" L,HEX CAB',
+        'PERNO,MÁQ:M12 D,1,75MM,80MM L,HEX CAB,AC',
+        'PERNO,ANCLJ:1/4" D,UNC,2-1/4" L,GALVANIZ',
+        'MARCD,CABL:NR 4,5,46MM X 3,35M,ADHSV',
+        'MARCD,CABL:NR 5,5,46MM X 3,35M,ADHSV',
+        'SELLO,LABERT:19MM A,DI 65MM X DE 93MM',
+        'FRASCO,SIN MODIFICADOR:MATRAZ,1000 ML,VI',
+        'PAPEL,IND UNV:PH,0-6 RANGO',
+        'TUBR,SIN MODIFICADOR:1-1/2",SCH 40S,ACER',
+        'MACHO,ROSCR:MÁQUINA,1/4",75MM,D 14,3MM,1',
+        'PERNO,MÁQ:4MM,0,7MM L,20MM,HEX CAB,ACERO',
+        'PERNO,MÁQ:M8 D,1,25MM,20MM L,HEX CAB,ACE',
+        'PERNO,MÁQ:M8 D,1,25MM,40MM L,HEX CAB,ACE',
+        'PERNO,MÁQ:M10 D,1,5MM,50MM L,HEX CAB,ACE',
+        'PERNO,MÁQ:M12 D,1,75MM,70MM L,HEX CAB,AC',
+        'TUERCA,HEX:M8 D,1,25MM,ACERO INOXIDABLE',
+        'ARAND,D/PRES:M8,ACERO INOXIDABLE 316',
+        'ARAND,D/PRES:M10,ACERO INOXIDABLE A4',
+        'TORNLL,C/CABZ:M12 D,1,75MM,60MM L,CILÍND',
+        'ESPRRG,SIN MODIFICADOR:1/2" D,15" L,13 U',
+        'PERNO,ANCLJ:3/8" D,UNC,3" L,GALVANIZADO',
+        'PERNO,ANCLJ:5/8" D,UNC,4-3/4" L,GALVANIZ',
+        'ABRAZD,D/MANG/TUB:CREMALLERA,D (10MM-22M',
+        'ABRAZD,D/MANG/TUB:CREMALLERA,D (14MM-32M',
+        'ABRAZD,D/MANG/TUB:CREMALLERA,D (21MM-44M',
+        'ABRAZD,D/CABLS MET:3/16" DE,A 1,16" X H',
+        'FORMULARIO PERMISO TRABAJO SEGURO 50/3',
+        'PLACA,MET:A 32MM X ESP 5MM,ACERO AL CARB',
+        'PLACA,MET:A 38MM X ESP 12MM,ACERO AL CAR',
+        'BORNE,CONEX:600V 41A',
+        'INTERRUP,D/CIRCT:TERMOMAGNÉTICO,240/415V',
+        'MARCD,CABL:NR 0,5,46MM X 3,35M,ADHSV',
+        'MARCD,CABL:NR 1,5,46MM X 3,35M,ADHSV',
+        'MARCD,CABL:NR 2,5,46MM X 3,35M,ADHSV',
+        'MARCD,CABL:NR 3,5,46MM X 3,35M,ADHSV',
+        'MARCD,CABL:NR 6,5,46MM X 3,35M,ADHSV',
+        'MARCD,CABL:NR 7,5,46MM X 3,35M,ADHSV',
+        'MARCD,CABL:NR 8,5,46MM X 3,35M,ADHSV',
+        'MARCD,CABL:NR 9,5,46MM X 3,35M,ADHSV',
+        'GRASA,IND:SINTÉTICA,BLANCO',
+        'QUÍM,SIN MODIFICADOR:FLOCULANTE CATIÓNIC',
+        'VENTL,SIN MODIFICADOR:AXIAL,120MM X 120M',
+        'ROD,BOLA:1218 K,A RÓTULA,90MM DI,160MM D',
+        'MANGUT,FIJ:80MM DI,112MM DE,A 70MM',
+        'PLACA,SIN MODIFICADOR:SOPORTE,A 51MM X L',
+        'CORREA,EN V:TRAPEZOIDAL,SPC-3750,3750MM',
+        'CORREA,EN V:TRITURADOR,SPZ-1060,1060MM D',
+        'ROD,BOLA:6215 2Z-C3,RÍGIDO,SENCILLO FILA',
+        'BOTAS,SIN MODIFICADOR:BOTÍN,CAPELLADA CU',
+        'SOLD,SIN MODIFICADOR:5 ALMAS DE RESINA,1',
+        'FILTRO,AIRE:REGULAR LUBRICADOR,1/2" NPT,',
+        'TERMMTR,DISCO:0-100 GR C',
+        'MODULO SAL. ANALOGA .A.BRADLEY 1771-OFE2',
+        'MÓD,SIN MODIFICADOR:ENT/SAL ANÁLOGA,4-20',
+        'MÓD,SIN MODIFICADOR:16 ENT DIGITALES,24V',
+        'INTERRUP,PULSD:RASANTE,240V 3A,RETORNO P',
+        'INTERRUP,D/CIRCT:TERMOMAGNÉTICO,230V,1P,',
+        'CONEC,D/TERM:REDONDO,3/0 AWG,COMP CON.CO',
+        'CONEC,D/TERM:REDONDO,4/0 AWG,COMP CON.CO',
+        'CONEC,D/TERM:REDONDO,500 MCM,COMP CON.CO',
+        'MANIJA,SIN MODIFICADOR:CON OBTURADOR',
+        'INTERRUP,LIM:240V 3A 50/60HZ,LENGUETA Y',
+        'CAD,TRANSP:PLACA RECTA,125MM,ISO R 1977/',
+        'SENSOR,FOTOELCT:10-30VCC ENT',
+        'ROD,ROD CIL:23122 CCW33,A RÓTULA,110MM D',
+        'GRASA,IND:PASD/RODAMIENTO,-40 A 149 GR C',
+        'INTERRUP,P/CAÍDA PRES:PRESÓSTATO,3/8" BS',
+        'ROD,BOLA:6213 2Z-C3,RÍGIDO,SENCILLO FILA',
+        'KIT,SIN MODIFICADOR:REPARACIÓN,APLIC MOT',
+        'ROD,BOLA:6309 2RS1-C3,RÍGIDO,SENCILLO FI',
+        'MANG,AIRE:D 10MM,PROTEC METÁLICA',
+        'CABLE,ELECTRC:CONTROL INDUSTRIAL,1 CALIB',
+        'CABLE,ELECTRC:CONTROL INDUSTRIAL,1 CALIB',
+        'CABLE,ELECTRC:CONTROL INDUSTRIAL,1 CALIB',
+        'CABLE,ELECTRC:CONTROL INDUSTRIAL,1 CALIB',
+        'CABLE,ELECTRC:CONTROL INDUSTRIAL,1 CALIB',
+        'CABLE,ELECTRC:CONTROL INDUSTRIAL,1 CALIB',
+        'CABLE,ELECTRC:CONTROL INDUSTRIAL,1 CALIB',
+        'CABLE,ELECTRC:CONTROL INDUSTRIAL,1 CALIB',
+        'CABLE,ELECTRC:CONTROL INDUSTRIAL,1 CALIB',
+        'ESLAB,CAD TRANSM:SIMPLE,81X PENDT',
+        'EXCENT,SIN MODIFICADOR:MANUAL,ACERO CON',
+        'SENSOR,FOTOELCT:BARRERA,18-30VCC,PNP,1,5',
+        'SENSOR,FOTOELCT:ÓPTICO,18-30VCC 70MA, 0-',
+        'CABZ,SIN MODIFICADOR:PILOTO LUMINOSO,D 2',
+        'LUM,IND:PILOTO LUMINOSO,ROJO',
+        'CABZ,SIN MODIFICADOR:PILOTO LUMINOSO,D 2',
+        'CAD,SIN MODIFICADOR:RODILLO DOBLE',
+        'SELLO,ACEITE:HIDRÁULICO,1-1/4" DI,2-3/8"',
+        'ADAPTD,D/TUBO:RECTO,12MM X 1/2",OD COMP',
+        'ADAPTD,D/TUBO:RECTO,12MM X 3/8",OD COMP',
+        'TORNLL,AUTOROSC:M10 D,1/2" L,ACERO GALVA',
+        'SENSOR,SIN MODIFICADOR:EMISOR',
+        'SENSOR,SIN MODIFICADOR:RECEPTOR,4,5M',
+        'CORREA,EN V:TRAPEZOIDAL,A-72,74" DESARRL',
+        'INSERT,SIN MODIFICADOR:GUÍA METÁLICO,DE',
+        'INSERT,SIN MODIFICADOR:GUÍA DE FIBRA,DE',
+        'MAT,SIN MODIFICADOR:PROTEC DE TARJETAS C',
+        'ESPACD,SIN MODIFICADOR:TRANSPORTADOR DE',
+        'ESPACD,SIN MODIFICADOR:TRANSPORTADOR DE',
+        'BRAZO,SIN MODIFICADOR:ACCTO',
+        'BRAZO,SIN MODIFICADOR:ACCTO',
+        'EJE,SIN MODIFICADOR:CONDUCCIÓN',
+        'EJE,SIN MODIFICADOR:TRANSPORTADOR DE REG',
+        'ANILLO,D/CENTR:TRANSPORTADOR DE REGISTRO',
+        'EJE,SIN MODIFICADOR:TRANSPORTADOR DE REG',
+        'EJE,SIN MODIFICADOR:TRANSPORTADOR DE REG',
+        'ROMPE ASTILLA SÖDERHAMNS Nº 84139245',
+        'TORNLL,AUTOROSC:M4 D,25MM L,ACERO GALVAN',
+        'CONEC,D/TERM:PUNTA,2,5MM CUADRADOS,COMP',
+        'QUÍM,SIN MODIFICADOR:SULFATO DE ALUMINIO',
+        'RUEDA,DESBST:225MM D,3,2MM ESP,B107 GR,D',
+        'ROD,BOLA:3210 2RS1,DOBLE FILA',
+        'CINTA,SIN MODIFICADOR:CALAFATEO,A 1/2" X',
+        'CLIP,SIN MODIFICADOR:ACCO CLIP,PLÁSTICO',
+        'ACEITE,IND:NO TOX AL LUBRICANT,19 L',
+        'CAD,D/TRANSM:RODILLO,1" PASO,BS 228 (DIN',
+        'ROD,BOLA:6210-C3,RÍGIDO,SENCILLO FILA,50',
+        'CINTA,SIN MODIFICADOR:TERMOTRANSFERENCIA',
+        'CARTCH,SIN MODIFICADOR:PALETA',
+        'ELEMNT,SIN MODIFICADOR:FLEXIBLE,DI 38MM',
+        'PAÑO,SIN MODIFICADOR:HUAIPE AMERICANO,20',
+        'ROD,ROD CIL:24032 CC/W33 C3,A RÓTULA,C3',
+        'ARAND,P/SELL:1/2" BSP,21,54MM DI,28,58MM',
+        'ARAND,P/SELL:1" BSP,33,89MM DI,42,80MM D',
+        'SELLO,SIN MODIFICADOR:NEUMÁTICO,D 100MM',
+        'SIERRA,CIRCLR:450MM D,2,8MM ESP,D.EJE 30',
+        'TARJ,D/CIRCT IMP:COMUNICACIÓN',
+        'RUEDA DENT,SIN MODIFICADOR:HUB ÚNICO,15D',
+        'MÓD,SIN MODIFICADOR:TRANSMISOR DEL SENSO',
+        'MÓD,SIN MODIFICADOR:RECEPTOR DEL SENSOR',
+        'MOTOR,HID:',
+        'VÁLV,SIN MODIFICADOR:SERVO ACCTO',
+        'RUEDA DENT,SIN MODIFICADOR:HUB DOBLE,17D',
+        'LÁMP,FLUORSC:20W,220V,600MM L,T-10 BULBO',
+        'DISOLV,SIN MODIFICADOR:DESPLAZADOR DE HU',
+        'FORMULARIO CONT.11"x9.1/2" TRIPLICADO',
+        'MÓD,SIN MODIFICADOR:ESCÁNER,5VCC 600MA A',
+        'MÓD,SIN MODIFICADOR:ENT ANÁLOGA,10VCC 4-',
+        'MANGO FROMM A33-5223',
+        'CORREA,EN V:TRAPECIAL DENTADA,5VX-710,18',
+        'LÁMP,INCAND:AMPOLLETA,3W,230V,C7A BULBO,',
+        'MOTOR,CA:4/4,8W,230V,50/60HZ',
+        'SIERRA,BANDA:A 9" (228,6MM) X L 9,35M X',
+        'SIERRA,BANDA:A 6" (152,4MM) X ESP 1,47MM',
+        'SIERRA,BANDA:A 6" (152,4MM) X ESP 1,24MM',
+        'SIERRA,BANDA:A 1" (25,4MM) X ESP 0,7MM',
+        'SIERRA,CIRCLR:350MM D,2,6MM ESP,D.EJE 30',
+        'ROD,BOLA:623 2RS,RÍGIDO,SENCILLO FILA,2',
+        'ABRAZD,SIN MODIFICADOR:8",ACERO',
+        'BASE,SIN MODIFICADOR:SENSOR',
+        'BUJE,SIN MODIFICADOR:CANTEADORA',
+        'RÓTULA,ESF:94MM,M16 MACHO,ACERO',
+        'RÓTULA,ESF:106MM,M20 X 1.5MM HEMBRA,ACER',
+        'RÓTULA,ESF:128MM,M24 X 2MM HEMBRA,ACERO/',
+        'RÓTULA,ESF:86MM,M16 X 1,5MM HEMBRA,ACERO',
+        'RÓTULA,ESF:',
+        'RÓTULA,ESF:DI 20MM X DE 54MM X A 16MM',
+        'RÓTULA,ESF:DI 25MM X DE 65MM X A 20MM,RO',
+        'RÓTULA,ESF:M30 X 2MM HEMBRA,ACERO',
+        'CAD,TRANSP:8"',
+        'CAD,TRANSP:BUZONES',
+        'CAD,TRANSP:ELEVADOR UNITIZADOR',
+        'CAD,TRANSP:ARTICULADA,2,5",SMS 1698',
+        'TARJ,D/CIRCT IMP:GABINETE CONTROL SCANNE',
+        'CONEC,CABLE CONDCT:ZÓCALO,5MM-11MM,TORNI',
+        'CONEC,CABLE CONDCT:ZÓCALO,5MM-11MM,TORNI',
+        'ADAPTD,D/TUBO:NEUMÁTICO RÁPIDO RECTO,6MM',
+        'CONVERTD,SIN MODIFICADOR:SISTEMA ELÉCTRI',
+        'CORREA,EN V:TRANSMISIÓN,J-1244 X6,1244MM',
+        'ELEMNT,D/SUJ:FIJACIÓN',
+        'ELEMNT,P/FILTR:HIDRÁULICO',
+        'CODIF,SIN MODIFICADOR:SISTEMA ELÉCTRICO',
+        'CODIF,SIN MODIFICADOR:SISTEMA ELÉCTRICO',
+        'FILTRO,ACEITE:HIDRÁULICO',
+        'FILTRO,AIRE:INYECTOR DE GAS',
+        'TRAMPA,D/VAPOR:FLOTADOR,2"',
+        'SENSOR,FOTOELCT:',
+        'SENSOR,FOTOELCT:24-240VDA-VCA',
+        'FUENT PODR,SIN MODIFICADOR:ASERRADERO',
+        'FUENT PODR,SIN MODIFICADOR:ASERRADERO',
+        'FITTNG,GRASR:RECTA,1/4" BSP',
+        'INSERT,SIN MODIFICADOR:METAL DURO',
+        'JUNTA,SIN MODIFICADOR:FIJACIÓN',
+        'KIT,SIN MODIFICADOR:O-RING,APLIC VÁLVULA',
+        'KIT,SIN MODIFICADOR:REPARACIÓN,APLIC TRA',
+        'MANGUT,FIJ:35MM DI,62MM DE,A 42MM',
+        'MÓD,SIN MODIFICADOR:DIGITAL SAL BINARIA,',
+        'MOTOR,CA:90KW,400V,3FASE,160A,4P,1480 RP',
+        'RUEDA,DESBST:DE 125MM D,5MM X 8MM ESP,D.',
+        'ESLAB,CAD TRANSM:DOBLE CON CLIP O BALLES',
+        'ESLAB,CAD TRANSM:ACODADO RODILLO TRIPLE,',
+        'PARADR,SIN MODIFICADOR:3/4" X 4-1/4",ANS',
+        'PARADR,SIN MODIFICADOR:CADENA',
+        'TORNLL,C/CABZ:1/2" D,13 UNC,3" L,CILÍNDR',
+        'PERNO,MÁQ:1/2" D,13 UNC,7" L,HEX CAB,ACE',
+        'PERNO,SIN MODIFICADOR:IGUALADOR',
+        'RUEDA DENT,SIN MODIFICADOR:HUB ÚNICO,15D',
+        'RUEDA DENT,SIN MODIFICADOR:HUB ÚNICO,16D',
+        'RUEDA DENT,SIN MODIFICADOR:HUB DOBLE,38D',
+        'RUEDA DENT,SIN MODIFICADOR:HUB ÚNICO,13D',
+        'DIENT,SIN MODIFICADOR:WIDIA BISL IZQUIER',
+        'MAT,SIN MODIFICADOR:MICROPERFORADO Y TER',
+        'PEL RECUB,SIN MODIFICADOR:EMBALAJE MANUA',
+        'POSICND,SIN MODIFICADOR:SISTEMA ELÉCTRIC',
+        'RELÉ,SIN MODIFICADOR:CONTROL MINIATURA,5',
+        'SELLO,ACEITE:1-3/8" DI,2-1/8" DE,5/16" A',
+        'SELLO,ACEITE:35MM DI,62MM DE,10MM A,NITR',
+        'RODAMIENTO NTN UC 207',
+        'ROD,ROD CIL:22215 E,A RÓTULA',
+        'ROD,BOLA:3205 A 2RS1,CONTCT ANGULAR,DOBL',
+        'ROD,BOLA:6016-2RS,RÍGIDO,80MM DI,125MM D',
+        'RÓTULA,ESF:DI 20MM X DE 35MM X A 16MM',
+        'SENSOR,D/PROX:INDUCTIVO,10-36VCC,ENRASAD',
+        'SOP,BRIDA:UKF-322',
+        'SOP,BRIDA:FYTB-50-TF,50MM DI,L 116MM X H',
+        'SOP,BRIDA:UKFC-215,65MM DI,L 220MM',
+        'RUEDA DENT,SIN MODIFICADOR:RODILLOS ALIM',
+        'TARJ,D/CIRCT IMP:AMPLIFICACIÓN',
+        'TARJ,D/CIRCT IMP:COMPUTADOR SCOC',
+        'TARJ,D/CIRCT IMP:MASTER CPU SP-321',
+        'TARJ,D/CIRCT IMP:ENT/SAL PUPITRE',
+        'TARJ,D/CIRCT IMP:MEDICIÓN ANCHO/POS',
+        'TRANSDUCT,SIN MODIFICADOR:PROXIMIDAD IND',
+        'TUERCA,HEX:SEGURO NYLON,1/2" D,13 UNC,AC',
+        'UNIÓN,SIN MODIFICADOR:ELEVADOR UNITIZADO',
+        'ESLAB,CAD TRANSM:CONECTOR,8" PENDT',
+        'ESLAB,CAD TRANSM:BUZONES',
+        'ESLAB,CAD TRANSM:TRIPLE,3/4" PENDT,CLIP',
+        'VÁLV,DIR:4 VÍAS,SOLENOIDE OPERAD,MAX 350',
+        'CUERPO,D/VÁLV:ALIVIO,1/4" NPTF,3000 PSI,',
+        'VÁLV,ALIVIO:UNID HIDRÁULICA,7/8",5000 LB',
+        'VÁLV,D/RETEN:REGULADORA DE PRES',
+        'VIRUTILLA N°2 P/PISO',
+        'TAPA,SIN MODIFICADOR:TERMINL,POLIAMIDA G',
+        'SELLO,ACEITE:175MM DI,205MM DE,15MM A,NI',
+        'SELLO,ACEITE:90MM DI,110MM DE,13MM A,NIT',
+        'SELLO,ACEITE:AXIAL,100MM DI,NITRILO (R)',
+        'CARTRIDGE TONER HEWLETT PACKARD C4096A',
+        'MARCD,D/ESCRIT:PLUMÓN PERMANENTE,NEGRO',
+        'PLACA,SIN MODIFICADOR:DIENTE WIDIA,A 5MM',
+        'DIENT,SIN MODIFICADOR:WIDIA RECTO,A 6,5M',
+        'EMPAQUET,GRANL:ROLLO,POLIETILENO VIRGEN',
+        'PEL RECUB,SIN MODIFICADOR:EMBALAJE,18 MI',
+        'LAPIZ CRAYON FLUORESC.NARANJO EX/DURO',
+        'DISCO,SIN MODIFICADOR:ESPIRAL,D 15"',
+        'PAPEL,E/ROLLO:HIGIÉNICO',
+        'LIMPD,D/PISOS:DESINFECTANTE,LÍQUIDO,1 L',
+        'PAÑO,SIN MODIFICADOR:ABSORBENTE,17CM X 2',
+        'ESPONJ,SIN MODIFICADOR:PLÁSTICA',
+        'ESPONJ,SIN MODIFICADOR:DESECHABLE',
+        'BOLSA,SIN MODIFICADOR:BASURA,50CM X 70CM',
+        'BOLSA,SIN MODIFICADOR:BASURA,70CM X 90CM',
+        'TRAPEAD,SIN MODIFICADOR:SIMPLE TAM.CAB,4',
+        'TRAPEAD,SIN MODIFICADOR:DOBLE,TRAPERO DO',
+        'LIMPD,D/PISOS:DESINFECTANTE,LÍQUIDO,500C',
+        'LIMPD,SIN MODIFICADOR:DESINFECTANTE PAST',
+        'LIMPD,SIN MODIFICADOR:DESINFECTANTE PAST',
+        'LIMPD,SIN MODIFICADOR:CREMA,730 GRAMOS',
+        'CERA,SIN MODIFICADOR:CREMA AMARILLA,480',
+        'LIMPD,SIN MODIFICADOR:DESINFECTANTE,LÍQU',
+        'LUSTRA MUEBL,SIN MODIFICADOR:',
+        'DESDRNT,SIN MODIFICADOR:AMBIENTAL,5 L',
+        'LIMPD,SIN MODIFICADOR:JABÓN LÍQUIDO,LÍQU',
+        'LIMPD,SIN MODIFICADOR:AMONIACADO,LÍQUIDO',
+        'LIMPD,D/PISOS:LÍQUIDO,5 L',
+        'LIMPD,SIN MODIFICADOR:LAVALOZAS CONCENTR',
+        'LIMPD,D/PISOS:PLASTICERA,LÍQUIDO,5 L',
+        'VASO,SIN MODIFICADOR:GENERAL PLANTA,8CM,',
+        'VASO,SIN MODIFICADOR:TÉRMICO,8CM',
+        'BOTAS,SIN MODIFICADOR:BOTÍN,CAPELLADA CU',
+        'ABRAZD,D/CABLS MET:1/4" DE,A 1,44" X H 1',
+        'ACEITE LUBRI. ROCOL ULTRAGRIND PREMIUN',
+        'ACOPLD,SIN MODIFICADOR:RÁPIDO AIRE,1/2",',
+        'ACOPLD,SIN MODIFICADOR:RÁPIDO HIDRÁULICO',
+        'ACOPLD,SIN MODIFICADOR:RÁPIDO HIDRÁULICO',
+        'ACOPLD,SIN MODIFICADOR:RÁPIDO HIDRÁULICO',
+        'ACOPLD,SIN MODIFICADOR:RÁPIDO HIDRÁULICO',
+        'ACOPLD,P/MANG:RÁPIDO,1/2",MNPT',
+        'ADHESIVO MADERA (COLA FRIA)',
+        'AMARRA,CABLES:SIN RETORNO,4,8MM MIN 98MM',
+        'AMPERMT,SIN MODIFICADOR:TABLERO DE CONTR',
+        'BALST,SIN MODIFICADOR:COMPENSADO,220V 50',
+        'BLOQE,CONTAC:AUXILIAR,NO-NC',
+        'BLOQE,CONTAC:1NO-1NC',
+        'BUJÍA,ENCEND:',
+        'CABZ,SIN MODIFICADOR:PULSADOR DOBLE,D 22',
+        'CABLE,ELECTRC:F,1 CALIB,2 AWG,600V @ 75',
+        'CABLE,ELECTRC:F,1 CALIB,4 AWG,600V @ 75',
+        'CABLE,ELECTRC:F,1 CALIB,4 AWG,600V @ 75',
+        'CABLE,ELECTRC:F,1 CALIB,4 AWG,600V @ 75',
+        'CABLE,ELECTRC:SERV PESADO,4 CALIB,14 AWG',
+        'CABLE,ELECTRC:F,4 CALIB,8 AWG,600V @ 75',
+        'CABLE,ELECTRC:F,1 CALIB,8 AWG,7 HEBRAS,6',
+        'CABLE,ELECTRC:F,1 CALIB,8 AWG,7 HEBRAS,6',
+        'CABLE,ELECTRC:F,1 CALIB,8 AWG,7 HEBRAS,6',
+        'CABLE,ELECTRC:F,1 CALIB,8 AWG,600V @ 75',
+        'CABLE,COAXL:RADIOFRECUENCIA,COBRE ELECTR',
+        'CAJA,SIN MODIFICADOR:EMPOTRABLE,300MM X',
+        'INTERRUP,PULSD:BOTONERA,250V 10A 50HZ,1N',
+        'LENTE,BOT PULSDR:ROJO',
+        'LENTE,BOT PULSDR:VERDE',
+        'CARTCH,SIN MODIFICADOR:VÁLVULA ALIVIO',
+        'CODO,SIN MODIFICADOR:1",ACERO GALVANIZAD',
+        'CONEC,D/TERM:PLANO,10-12 AWG,COMP CON.CO',
+        'CONEC,D/TERM:PLANO,10-12 AWG,COMP CON.CO',
+        'ACOPLD,D/TUBOS:NEUMÁTICO,10MM X 10MM,OD',
+        'ACOPLD,D/TUBOS:NEUMÁTICO L,10MM,-0,95 A',
+        'ADAPTD,SIN MODIFICADOR:RECTO,2-1/2",ACER',
+        'ADAPTD,D/TUBO:RECTO "L",12MM,OD COMP,ALT',
+        'CONTD,D/MOT:380V 105A 50HZ 55KW,220V,3P,',
+        'ACOPLAM,SIN MODIFICADOR:REDUCCIÓN,1-1/2"',
+        'CORREA,EN V:TRAPEZOIDAL,3V-560,1422MM (5',
+        'CORREA,EN V:TRAPEZOIDAL,3VX-265,673MM (2',
+        'CORREA,EN V:TRAPEZOIDAL,3VX-375,953MM (3',
+        'CORREA,EN V:TRAPECIAL LISA,1332MM DESARR',
+        'CUERPO,SIN MODIFICADOR:CERRADURA/MANETA',
+        'CUERPO,SIN MODIFICADOR:PULSADOR',
+        'CUERPO,SIN MODIFICADOR:PULSADOR',
+        'SENSOR,D/PROX:INDUCTIVO,12/48VCC,D 18MM',
+        'SENSOR,D/PROX:INDUCTIVO,18/48VCC 0-200MA',
+        'EMPAQUET,SIN MODIFICADOR:BOMBA Y VÁLVULA',
+        'ENCH,ELECTRC H:MÓDULO EMBUTIDO,10A,220V',
+        'ESLAB,CAD TRANSM:DOBLE,1/2" PENDT,CLIP (',
+        'ETIQUETA AUTOADHESIVA 16X37 MM BLANCA',
+        'FILTRO,ACEITE:HIDRÁULICO',
+        'FILTRO,SIN MODIFICADOR:Y,D 1",BSPT,MALLA',
+        'FILTRO,SIN MODIFICADOR:Y,D 1-1/2",NPT,AC',
+        'FILTRO,P/TUBR:Y,DN65,BRIDA DIN 2534,PN25',
+        'GRASA,SIN MODIFICADOR:LUBRICANTE,220 CST',
+        'GUANTS,SIN MODIFICADOR:MULTIUSO ANTIESTÁ',
+        'IMP,D/BBA:130MM DE,HIERRO FUNDIDO',
+        'INTERRUP,SIN MODIFICADOR:MÓDULO SIMPLE,2',
+        'INTERRUP,D/CIRCT:TERMOMAGNÉTICO,380/415V',
+        'INTERRUPTOR 3x25A 10KA C IEC-947 R/DIN.',
+        'INTERRUP,D/CIRCT:TERMOMAGNÉTICO,380/415V',
+        'INTERRUP,D/CIRCT:TERMOMAGNÉTICO,380/415V',
+        'INTERRUP,D/CIRCT:TERMOMAGNÉTICO,240/415V',
+        'INTERRUP,D/CIRCT:TERMOMAGNÉTICO,240/415V',
+        'LIMA,SIN MODIFICADOR:GRUESA,L 10",REDOND',
+        'LUM,D/HM:INTERIOR,220V,400W',
+        'MANOM,SIN MODIFICADOR:0-16 BAR (0-230 PS',
+        'MARCD,CABL:NR 0-9',
+        'MOLD,SIN MODIFICADOR:CON TAPA,32MM X 15M',
+        'SELLO,ACEITE:OBTURACIÓN,55MM DI,94,7MM D',
+        'TORNLL,C/CABZ:5/32" D,32 BSW,3/8" L,CILÍ',
+        'TORNLL,C/CABZ:M5 D,0,8MM,10MM L,AVELLANA',
+        'PERNO,SIN MODIFICADOR:M5 D,20MM L',
+        'PERNO,SIN MODIFICADOR:ENZUNCHADORA',
+        'PLACA,MET:A 1000MM X L 3000MM X ESP 8MM,',
+        'POLIN,SIN MODIFICADOR:ARRASTRE',
+        'CAJA REDT,SIN MODIFICADOR:PANEL DE TRANS',
+        'RELÉ,SIN MODIFICADOR:AUXILIAR DE PROPÓSI',
+        'RELÉ,D/SOBREC:TÉRMICO,132-220A,1NA-1NC,A',
+        'SELLO,ACEITE:50MM DI,90MM DE,10MM A,NITR',
+        'SELLO,ACEITE:1-3/4" DI,2-1/2" DE,5/16" A',
+        'SELLO,ACEITE:30MM DI,50MM DE,7MM A',
+        'GUÍA,SIN MODIFICADOR:RIEL DIN,A 35MM X P',
+        'ROD,BOLA:6316-C4,RÍGIDO,SENCILLO FILA,80',
+        'ROD,BOLA:7207 BEP,CONTCT ANGULAR,SENCILL',
+        'ROD,ROD CIL:NUP 210 ECJ,SENCILLO FILA,50',
+        'RUEDA DENT,SIN MODIFICADOR:40DTES,DOBLE',
+        'ANILLO,D/RETEN:SEGURO OMEGA INTERIOR,D 9',
+        'INTERRUP,PULSD:',
+        'INTERRUP,PULSD:BOTONERA,1NA+1NC',
+        'INTERRUP,SELECT:RESORTE DE RETORNO DE IZ',
+        'SELLO,MEC:D.EJE1",CARBONO/CERÁMICA/ BUNA',
+        'KIT,SIN MODIFICADOR:REPARACIÓN,APLIC EVS',
+        'KIT,SIN MODIFICADOR:REPARACIÓN,APLIC 200',
+        'KIT,SIN MODIFICADOR:SELLO,APLIC 16FF-105',
+        'BOB,ELECTRC:SOLENOIDE,24VCC 18W',
+        'SOP,BRIDA:CIRCULAR,MONT.PERNO 4,16MM D.P',
+        'SOP,BRIDA:',
+        'SOP,BRIDA:CUADRADO,MONT.PERNO 4,15,9MM D',
+        'SOP,TENSR:D37MM X H 103MM X L 129MM',
+        'CARCS,SOP PIE:TAPA LATERAL,DE 158,6MM X',
+        'PANF,SIN MODIFICADOR:VENTILADOR,PLÁSTICO',
+        'PANF,SIN MODIFICADOR:VENTILADOR,PLÁSTICO',
+        'TARUGO,SIN MODIFICADOR:8MM,PLÁSTICO',
+        'CONEC,D/TERM:PUNTA,14-16 AWG,COMP CON.CO',
+        'CONEC,D/TERM:OJO,6 AWG,COMP CON.COND,(1)',
+        'CONEC,D/TERM:PUNTA,14 AWG (2MM CUADRADOS',
+        'CONEC,D/TERM:PUNTA,1,5MM CUADRADO (16 AW',
+        'TRAFO,SIN MODIFICADOR:1KVA,380V PRIM,110',
+        'TUBO,SIN MODIFICADOR:HIDRÁULICO,D 20MM,A',
+        'TUERCA,HEX:M12 D,1,5MM,ACERO,GR 8,8,DIN',
+        'VÁLV,ALIVIO:3/4" NPT,1500-3000 LB',
+        'VENTL,SIN MODIFICADOR:REFRIG MOTOR,50HZ',
+        'VENTL,SIN MODIFICADOR:REFRIG MOTOR',
+        'VOLTMT,SIN MODIFICADOR:0-500V',
+        'BISGRA,SIN MODIFICADOR:VAIVEN,4"',
+        'RÓTULA,ESF:DI 76,2MM X DE 120,65MM X A 6',
+        'CODIF,SIN MODIFICADOR:ÓPTICO',
+        'SENSOR,FOTOELCT:',
+        'FILTRO,COMBST:LUBRICACIÓN',
+        'TACO APUNTES BLANCO 9 X 9 CM',
+        'FILTRO,SIN MODIFICADOR:BULBO HÚMEDO SECA',
+        'ROD,ROD CIL:15102/15245,CÓNICO,253400MM',
+        'BAT,SECA:ALCALINA,1,5VDC,AA',
+        'BAT,SECA:ALCALINA,1,5VDC,AAA (MINI)',
+        'BAT,SECA:ALCALINA,1,5VDC,C (MEDIANA)',
+        'BAT,SECA:ALCALINA,1,5VDC,D (GRANDE)',
+        'BAT,SECA:ALCALINA,9VDC',
+        'RÓTULA,ESF:DI 63MM X DE 95MM X A 63MM,AC',
+        'CORREA,SINC:8M-800-30,DENTADA,800MM L.SE',
+        'CARTRIDGE HEWLETT PACKARD C6615D NEGRO',
+        'SOBRE TIPO SACO RONEO 19 X 12.5 MM',
+        'FORMULARIO SHOP MADERA SECA',
+        'FORMULARIO MEMORANDUM 13.5 X 19 MM',
+        'FORMULARIO CONTROL CAMIONES 22 X 16.5 MM',
+        'AGUA,SIN MODIFICADOR:PURIFICADA,20 L BID',
+        'CARTRIDGE TINTA HEWLETT PACKARD 6578D',
+        'CODIF,SIN MODIFICADOR:RODILLO DE PRESIÓN',
+        'INTERRUP,PULSD:SETA,LLAVE,1NC,ROJO,IP65',
+        'PORTA CUCHILLO DER.SODERHAMNS 83101766',
+        'SUJETD,SIN MODIFICADOR:CUCHILLO,74,75MM',
+        'ADAPTD,SIN MODIFICADOR:EJE',
+        'TARJ,D/CIRCT IMP:',
+        'RELÉ,SIN MODIFICADOR:POT,22,5VCC',
+        'CODIF,SIN MODIFICADOR:100 PPR',
+        'MOTOR,HID:280 BAR ENT',
+        'SELLO,SIN MODIFICADOR:HIDRÁULICO,DI 18MM',
+        'GRASA,IND:ALTA,329,6 CST @ 40 GR C, 25 C',
+        'SELLO,SIN MODIFICADOR:5/8",ACERO GALVANI',
+        'VENTL,SIN MODIFICADOR:AXIAL,255MM X 255M',
+        'ROD,BOLA:6212 2Z-C3 GJN,RÍGIDO,SENCILLO',
+        'RELÉ,D/SOBREC:CONTROL,26VCC',
+        'VÁLV,AGUJ:1/4",1,5 MPA,0-60 GR C,NPT,NYL',
+        'PERNO,SIN MODIFICADOR:1/2" D,13 UNC,7" L',
+        'MÓD,SIN MODIFICADOR:BASE PODER,220V ALIM',
+        'CONTCT,SIN MODIFICADOR:AUXILIAR',
+        'PLACA,SIN MODIFICADOR:MONT,ALUMINIO REFO',
+        'RÓTULA,ESF:DI 20MM X DE 51MM X A 25MM',
+        'ETIQUETA ADHESIVA 50X67MM LOGO ARAUCO',
+        'TUERCA,HEX:1/2" D,13 UNC,ACERO INOXIDABL',
+        'MANG,HID:D 1/4",500MM L,JIC RECTA X HEMB',
+        'CAD,D/TRANSM:REDUCTOR DE CULATA,1-1/2" P',
+        'PERNO,MÁQ:HEX CAB',
+        'RUEDA,D/ALAMBR P/PULD:GRATA CIRCULAR,M14',
+        'TARJ,D/CIRCT IMP:REPORTE',
+        'TARJ,D/CIRCT IMP:COMUNICACIÓN',
+        'QUÍM,SIN MODIFICADOR:ALCALINIZANTE',
+        'EJE,SIN MODIFICADOR:ENZUNCHADORA',
+        'PLACA,SIN MODIFICADOR:PRENSA DERECHA,38M',
+        'PLACA,SIN MODIFICADOR:PRENSA IZQUIERDA,3',
+        'PARADR,CIL:',
+        'RESRT,SIN MODIFICADOR:PRESIÓN',
+        'ROD,SIN MODIFICADOR:TENSIÓN,DI 15,5MM X',
+        'TORNLL,SIN MODIFICADOR:DEL EXPULSOR',
+        'PERNO FROMM N1-1304 A334/335/338/380',
+        'TORNLL,SIN MODIFICADOR:ENZUNCHADORA,M10',
+        'ELEMNT,P/FILTR:HIDRÁULICO,DI 1,35" X DE',
+        'TORNLL,C/CABZ:M5 D,0,8MM,60MM L,CILÍNDRI',
+        'PINTR,SIN MODIFICADOR:ÓLEO,AZUL (RAL 501',
+        'BRIDA,SIN MODIFICADOR:PIVOTE',
+        'ILUMIND,SIN MODIFICADOR:HALURO METÁLICO',
+        'SELLO,SIN MODIFICADOR:LISO,1/2",METÁLICO',
+        'SELLO,SIN MODIFICADOR:ABIERTO,3/4",METÁL',
+        'ÁNG,ESTRUCT:3/4",ACERO',
+        'AMARRA,CABLES:12MM +/-0,6 A,ESP 0,5MM +/',
+        'TARJ,D/CIRCT IMP:CONTROL CPU',
+        'TARJ,D/CIRCT IMP:SAL RELÉ',
+        'TARJ,D/CIRCT IMP:VISUALIZADOR SAL GABINE',
+        'TARJ,D/CIRCT IMP:CONTROL FRONTAL',
+        'TARJ,D/CIRCT IMP:POS',
+        'TARJ,D/CIRCT IMP:ALIM DC',
+        'TARJ,D/CIRCT IMP:ENCODIFICADORA-CONTADOR',
+        'TARJ,D/CIRCT IMP:CONTCT',
+        'TARJ,D/CIRCT IMP:INTERFACE',
+        'TARJ,D/CIRCT IMP:',
+        'TARJ,D/CIRCT IMP:',
+        'TARJ,D/CIRCT IMP:CONTROL',
+        'TARJ,D/CIRCT IMP:',
+        'TARJ,D/CIRCT IMP:',
+        'TARJ,D/CIRCT IMP:AMPLIFICADORA DSH',
+        'TARJ,D/CIRCT IMP:TERMINADOR',
+        'TARJ,D/CIRCT IMP:FUENTE DE PODER',
+        'TARJ,SIN MODIFICADOR:DIA',
+        'TARJ,SIN MODIFICADOR:DOR',
+        'TARJ,SIN MODIFICADOR:DOT',
+        'TARJ,SIN MODIFICADOR:',
+        'TARJ,SIN MODIFICADOR:DIN',
+        'TARJ,SIN MODIFICADOR:COM',
+        'TARJ,SIN MODIFICADOR:CPA',
+        'TARJ,SIN MODIFICADOR:SER',
+        'TARJ,SIN MODIFICADOR:DIT',
+        'TARJ,D/CIRCT IMP:SAL',
+        'TARJ,SIN MODIFICADOR:CNB',
+        'TARJ,SIN MODIFICADOR:DAC',
+        'TARJ,D/CIRCT IMP:CPU',
+        'MÓD,SIN MODIFICADOR:SAL ANÁLOGA',
+        'ENCH,SIN MODIFICADOR:CON LED,24V 0,75A',
+        'CERA,SIN MODIFICADOR:PARAFINA,SÓLIDA,CAJ',
+        'EJE,SIN MODIFICADOR:ESTRIADO',
+        'LÁMP,INCAND:BALIZA SEÑALIZACIÓN,60W,220V',
+        'TUBO,SIN MODIFICADOR:SISTEMA NEUMÁTICO,D',
+        'CIL,ACTDR LINL:NEUMÁTICO DOBLE EFECTO,25',
+        'PEL RECUB,SIN MODIFICADOR:EMBALAJE MANUA',
+        'SENSOR,D/PROX:FOTOELÉCTRICO,10-30VCC,80M',
+        'ACEITE,D/MOT:LUBRICANTE,GR.SAE 20W-50',
+        'RÓTULA,ESF:DI 70MM X DE 105MM X A 49MM',
+        'AMARRE,SIN MODIFICADOR:ZUNCHO,A 3/4" X E',
+        'AMARRE,SIN MODIFICADOR:ZUNCHO,A 19MM +/-',
+        'CLAVO,SIN MODIFICADOR:HELICOIDAL MAGAZIN',
+        'PLACA,CONEX:380/660V',
+        'TORNLL,C/CABZ:M10 D,1,5MM,30MM L,CILÍNDR',
+        'REGULD,D/TIRO:BASE DE METALURGIA,D 48MM',
+        'LUB,SIN MODIFICADOR:PENETRANTE MINERAL A',
+        'CONEC,CABLE CONDCT:PG13,5 TAM.SAL,5MM-12',
+        'INDIC,SIN MODIFICADOR:ANILLO INDIC DE PO',
+        'CÁM,FOTGRAF:CÁMARA DE CIRCUITO CERRADO A',
+        'FILTRO,AIRE:SAL,L 255MM X H 255MM X ESP',
+        'VENTL,SIN MODIFICADOR:AXIAL EXTERNO PEQU',
+        'MOTOR,CA:5,5KW,220/380V,50HZ,19,8/11,4A,',
+        'ACUMLD,SIN MODIFICADOR:2,5 GAL CAP,NITRÓ',
+        'BLOQE,CONTAC:AUXILIAR,2NO-2NC',
+        'MÓD,SIN MODIFICADOR:INTERFASE',
+        'TARJ,D/CIRCT IMP:RELÉ ENTRADA/SALIDA',
+        'CUCH,SIN MODIFICADOR:ESTRIADO,1-1/4" X 3',
+        'MOTOR,CA:1,5 HP (1,1KW),220-380/230/460/',
+        'ELEMNT,SIN MODIFICADOR:BARREDOR',
+        'BBA,DESPLAZ POSTV:PALETA',
+        'RÓTULA,ESF:DI 30MM X DE 75MM X A 22MM,FN',
+        'CAD,SIN MODIFICADOR:RODILLO SIMPLE',
+        'TORNLL,C/CABZ:M16 D,2MM,50MM L,CILÍNDRIC',
+        'PERNO,MÁQ:M20 D,2,5 UNC,90MM L,HEX CAB,A',
+        'RUEDA DENT,SIN MODIFICADOR:HUB ÚNICO,17D',
+        'BRIDA,SIN MODIFICADOR:BASCULANTE ESFÉRIC',
+        'BRIDA,SIN MODIFICADOR:BASCULANTE ESFÉRIC',
+        'CABLE,ELECTRC:F,1 CALIB,2/0 AWG,1KV @ 90',
+        'CONTEND,SIN MODIFICADOR:CON RUEDA Y TAPA',
+        'SILNCD,SIN MODIFICADOR:NEUMÁTICO,G1/8",P',
+        'VÁLV,DIR:1/2" TAM.TUBE,5 VÍAS,G1/2",SOLE',
+        'INTERRUP,PULSD:RASANTE LUMINOSO,24VCA/CC',
+        'INTERRUP,PULSD:LUMINOSO,24VCA/CC,1NA+1NC',
+        'INTERRUP,PULSD:LUMINOSO,24VCA/CC 3A,1NA+',
+        'INTERRUP,PULSD:RASANTE LUMINOSO,220V 50H',
+        'LUM,IND:PILOTO LUMINOSO,24VCA/CC,1,2W,RO',
+        'LUM,IND:PILOTO LUMINOSO,220V,1,2W,CRISTA',
+        'QUÍM,SIN MODIFICADOR:ACETILENO GR INDUST',
+        'GAS,SIN MODIFICADOR:OXÍGENO,CIL ACERO/VA',
+        'DIENT,SIN MODIFICADOR:WIDIA RECTO,A 5,5M',
+        'CARTRIDGE TONER HEWLETT PACKARD C7115A',
+        'ACOPLD,P/MANG:RÁPIDO,1/2",MACHO PUSH LOK',
+        'SILNCD,SIN MODIFICADOR:NEUMÁTICO,G1/2",C',
+        'REGULD,D/PRES:DOS VÍAS CON MANÓMETRO,16',
+        'CIL,ACTDR LINL:NEUMÁTICO DOBLE EFECTO,32',
+        'ELEMNT,P/FILTR:AGUA,L 10",5 MICRÓN',
+        'PLACA,SIN MODIFICADOR:TERMINAL DE CONEXI',
+        'LENTE,CÁM FOTO:VARIFOCAL,3,5-8MM',
+        'TARJ,D/CIRCT IMP:',
+        'CAND,SIN MODIFICADOR:50MM A.ESTUC,21,5MM',
+        'ADAPTD,D/TUBO:NEUMÁTICO RECTO,DE 12MM X',
+        'BAT,ACUMLD:PLOMO-ÁCIDO,12VDC,5AH',
+        'MANGO,SIN MODIFICADOR:ENZUNCHADORA',
+        'FILTRO,ACEITE:COMPRESOR DE AIRE,DE 121,6',
+        'CAD,TRANSP:TRATAMIENTO TERMICO Y INDUCCI',
+        'ACOPLD,D/TUBOS:RECTO,12MM X R1/4",-0,95',
+        'RELÉ,SIN MODIFICADOR:DISPR,25-32A 120V 2',
+        'ACOPLD,SIN MODIFICADOR:CODO,12MM X 1/2",',
+        'VÁLV,GLOBO:6",BRIDA,ACTUADOR OPERAD,ACER',
+        'MÓD,SIN MODIFICADOR:ESCÁNER',
+        'SELLO,ACEITE:40MM DI,72MM DE,10MM A,NITR',
+        'ACOPLD,D/TUBOS:NEUMÁTICO L,12MM X R1/4",',
+        'BLOQE,CONTAC:AUXILIAR FRONTAL,TORNILLO T',
+        'CORCHT,SIN MODIFICADOR:T,3/8" (10,8MM X',
+        'RELÉ,SIN MODIFICADOR:CONTROL MINIATURA,7',
+        'RELÉ,SIN MODIFICADOR:CONTROL MINIATURA,3',
+        'TECLADO ESTANDAR PS/2 PC',
+        'VÁST,SIN MODIFICADOR:HIDRÁULICO,D 45MM X',
+        'BBA,CENT:AGUA,2" X 2" ROSCADA,300 LPM CA',
+        'FUENT PODR,SIN MODIFICADOR:PLC,120-230V',
+        'SELLO,ACEITE:45MM DI,75MM DE,8MM A,NITRI',
+        'MÓD,SIN MODIFICADOR:RESISTIDO',
+        'TARJ,D/CIRCT IMP:RELÉ ENTRADA/SALIDA',
+        'ESLAB,CAD TRANSM:SIMPLE ADIT SK1,1" PEND',
+        'QUÍM,SIN MODIFICADOR:ANTIMANCHA OXINA DE',
+        'QUÍM,SIN MODIFICADOR:ANTIMANCHA CLOROTAL',
+        'ACEITE,IND:MINERAL EMULSIONABLE,175 GR C',
+        'INTERRUP,D/CIRCT:600V,3P,150A,0,75-2,5KA',
+        'PINTR,SIN MODIFICADOR:LÁTEX,VERDE (RAL 6',
+        'ACEITE,IND:LUBRICANTE,150 CST @ 40 GR C',
+        'ALAMB,SIN MODIFICADOR:CODIFICADOR,D 0,5M',
+        'MEDD,SIN MODIFICADOR:ÁNG,0-45 GR',
+        'FUENT PODR,SIN MODIFICADOR:ESCÁNER,230V',
+        'GAS,SIN MODIFICADOR:ARGÓN INDUSTRIAL,CIL',
+        'GAS,SIN MODIFICADOR:MEZCLA ARGÓN-ANHÍDRI',
+        'GRASA,IND:MOLDURERA,COMPLEJO ALUMINIO ES',
+        'MOUSE OPTICO USB C/RUEDA DESPLAZ.',
+        'GAS,SIN MODIFICADOR:NITRÓGENO,CIL ACERO/',
+        'SELLO,ACEITE:52MM DI,100MM DE,10MM A,NIT',
+        'ROD,BOLA:6003 2RS1-C3,RÍGIDO,SENCILLO FI',
+        'ELEMNT,P/FILTR:',
+        'BROCA,HELIC:CONO MORSE,1-1/16",ACERO SUP',
+        'CARTRIDGE NEGRO HEWLETT PACKARD C8727A',
+        'CARTRIDGE COLOR HEWLETT PACKARD C8728A',
+        'ACUMLD,SIN MODIFICADOR:HIDRÁULICO,1 GAL',
+        'PASTA,P/SELL:SILICONA OXÍMICA RTV,NEGRO,',
+        'MÓD,SIN MODIFICADOR:16 ENT DIGITALES,10-',
+        'MÓD,SIN MODIFICADOR:PROCESS',
+        'RATÓN,SIN MODIFICADOR:COMPUTADOR PERSONA',
+        'CABLE,ELECTRC:F,4 CALIB,10 AWG,1KV @ 90',
+        'BLOQE,CONTAC:',
+        'ETIQUETA ADHESIVA 36,5X31,5CM LUMBER',
+        'SOP,BRIDA:CIRCULAR,MONT.PERNO 4',
+        'EMPAQUET,SIN MODIFICADOR:60" X 60" X 1/8',
+        'CARTRIDGE TONER HEWLETT PACKARD Q2613A',
+        'ROCIDR,C/INCND:PITON NEBLINERO,1"',
+        'ETIQUETA ADHESIVA 22X30MM 2"X6"X4,8MM',
+        'ETIQUETA ADHESIVA 22X30MM 2"X8"X4,8MM',
+        'SELLO 5/8" ACERO GALVAN.',
+        'BBA,CENT:3" X 2-1/2",60M CÚBICO/H CAP',
+        'FUSIB,SIN MODIFICADOR:ACCIÓN RÁPIDA,10A,',
+        'CONEC,D/COMN:BNC ADAPTADOR RECTO,RG59 SE',
+        'CONEC,D/COMN:BNC MACHO,RG58 SECC',
+        'CONEC,D/COMN:BNC ADAPTADOR T HEMBRA',
+        'CONEC,ELECT T:BNC ADAPTADOR T,HEMBRA CON',
+        'MOTOR CA 55KW 4P 250M B3 SIEMENS 1LG4',
+        'CONECTOR MACHO DB-9 RS 246-6092',
+        'CONECTOR MACHO DB-15 RS 246-6109',
+        'CONECTOR MACHO DB-25 RS 246-6115',
+        'CONECTOR HEMBRA DB-9 RS 215-5922',
+        'CONECTOR HEMBRA DB-15 RS 215-5944',
+        'CONECTOR HEMBRA DB-25 RS 215-5966',
+        'FUNDA PLASTICA DB-9 RS 347-0389',
+        'FUNDA PLASTICA DB-15 RS 347-0395',
+        'FUNDA PLASTICA DB-25 RS 347-0418',
+        'FUENTE PODER SIEMENS 6EP1437-2BA10',
+        'ARAND,P/SELL:3/8" BSP,17,28MM DI,23,8MM',
+        'MOTOR CA 5,5KW 4P 132S B5 SEW DFV132SBMG',
+        'ADAPTADOR MACHO 1/2"NPTx1/2"NPT 3000PSI',
+        'BROCAS 4-10MM P/CONCRETO HILTI 23846-5',
+        'LENTE CLARO UVEX 3001 S2500',
+        'ACOPLAMIENTO FLEX.REX OMEGA ES5',
+        'MONITOR 17" SAMSUNG SYNCMASTER 793S',
+        'OBTURACION SKF TSNA 518 S',
+        'TRAJE AGUA PVC',
+        'PANTALON MEZCLILLA TREVIRA',
+        'CASCO SEG.I/E MSA V-GARD',
+        'UPS 2KVA LIEBERT GXT22000RT230',
+        'UPS 3KVA LIEBERT GXT33000RT230',
+        'ANILLO SELLO VOGT 19,01 N660FES/241',
+        'MOTOR CA 2,2KW 6P 112M B3 SIEMENS 1LA9',
+        'TERMINAL PUNTA 10AWG 23X6MM',
+        'TERMINAL PUNTA 12AWG 12x2,8MM',
+        'TERMINAL PUNTA 14AWG 12x2,3MM',
+        'TERMINAL PUNTA 16AWG 10x1,8MM',
+        'MOTOR CA 75KW 4P 280S B3 SIEMENS 1LG6',
+        'ANTIPARRA CLARO UVEX STEALTH S3960C',
+        'GUANTE ANTICORTE BEST DFLEX PLUS 917C',
+        'SIERRA HUINCHA 1.1/4" 0.042" 3/4"',
+        'PROTECTOR AUD.FONO 21DB/A PELTOR H6B/V',
+        'BALLAST INT.70W 1A 220V SODIO-AP',
+        'EJE EXCENTRICO 10x200MM STA-ISELI',
+        'FUSIBLE 3A 250V 35A 5x20MM RAP.',
+        'CODO 90º HE. 1/4"NPT INOX. PARKER',
+        'CODO 90º HE. 1/2"NPT INOX. PARKER',
+        'CONECTOR T 1/4"ODX1/4"NPT INOX. PARKER',
+        'ELECTRODO 3/32" SUPER ALL INDURA 2000264',
+        'RODAMIENTO R/C SKF 33210 Q',
+        'TABLA APOYO MADERA OFICIO C/APRETADOR',
+        'CARTRIDGE TONER HEWLETT PACKARD Q2612A',
+        'CILINDRO FUELLE DOBLE WEFORMA WBZ 500',
+        'CONTACTOR 45KW TELEMECANIQUE LC1D95M7',
+        'ARANDELA PLANA M12 INOX.316',
+        'RETEN 62X120X12/8MM BASF NBR',
+        'CARTRIDGE TONER HEWLETT PACKARD Q2610A',
+        'PAPEL HIGIENICO 9,5CMx600M',
+        'CONDENSADOR 25KVAR ELECTRONICON MKP 25K',
+        'CONDENSADOR 50 KVAR RTR BO/R',
+        'TARJETA WAGNER 811-00095-001 810',
+        'RODAMIENTO SKF 23022 CC W33',
+        'BASE RELE PHOENIX PLC-RSC-24DC/21',
+        'AMARRA CABLES 280X3,5MM PA 6.6 CLARO',
+        'ANTIMANCHA QUINOLATO COBRE NIPACIDE P508',
+        'FUNGICIDA ANTIMOHO NIPACIDE P 720',
+        'ASIENTO RESORTE FROMM N2-5606 A335/A338',
+        'BUJE FROMM N3.3160',
+        'GUIA DUROCOTON 160X51X36 TWIN',
+        'ESPARRAGO M20-2,5X115MM SI T1',
+        'CONDENSADOR TRIF. 35KVAR DNA RTR BO/R',
+        'ANTIESPUMANTE JET POLI-DIMETILSILOXANO',
+        'FUNGICIDA ANTIMOHO GOLDAZIM 500 SC',
+        'LINTERNA CASCO WAYAX 17-HL4AA',
+        'VALVULA PIE 2"WILDFIRE B-5258',
+        'MODULO CPU ALLEN BRADLEY 1785-L40B/E',
+        'CONECTOR H/RECTO 4PIN SICK DOL-1204G02MC',
+        'INTERRUPTOR 3x16A MERLIN GERIN C60N-C',
+        'FUENTE PODER NEWNES 89043285',
+        'RESORTE COMP.GAS VOLLMER 216864',
+        'PLACA FIJACION VOLLMER 227256-01',
+        'RODILLO S/GUIA VOLLMER 225010 CHC020',
+        'BARRA FOSFOR.USNR UHMW-PINK.25',
+        'TARJETA LASER NEWNES 70ZLDC0-00',
+        'CILINDRO HID.STACKER NEWNES HC10-D',
+        'VALVULA ALIVIO SUN RPGC-JEN T-3A',
+        'SWITCH 4P AVOCENT 10045',
+        'AVOCENT LONGVIEW COMPANION(LV620-AM)',
+        'MODULO SAL.A.BRADLEY 1746-OW16',
+        'ETIQUETA ADHESIVA 300X100MM BLANCO',
+        'PERNO M24-3X140MM CAB.HEX. GR.8,8 BRUKS',
+        'MODULO ENT.ALLEN BRADLEY 1746-NI4',
+        'EJE SAL.SEW 6412114 REDUCT.SEW R67',
+        'ETIQUETA PREPICADA 8X17,5CM C/COD.BARRA',
+        'UPS 5KVA SAB-NIFE 105120PW5STS105',
+        'REPARACION VICKERS 923989 PVE19RW',
+        'ACOPLAMIENTO FLEX.LOVEJOY L095',
+        'ACOPLAMIENTO FLEX.LOVEJOY L110',
+        'BLOQUE CONTACTOS TELEMECANIQUE GVAE20',
+        'CILINDRO HID.REXROTH CDM1MT4 63/36/100',
+        'CARTRIDGE TONER HEWLETT PACKARD Q2624A',
+        'VALVULA VICKERS KADG5V82C280NXHMFPD7H111',
+        'RUEDA TRACCION FROMM A33-7115',
+        'ARANDELA PRESION 12MM ACERO INOX316L',
+        'SENSOR OPTICO DIFUSO BANNER T18SP6D',
+        'BASE ALLEN BRADLEY 800F-ALP',
+        'BLOQUE CONTACTO ALLEN BRADLEY 800F-X10',
+        'CINTA AZUL 12X4MM DYMO 91335',
+        'CINTA BLANCA 12X4MM DYMO 91331',
+        'CINTA VERDE 12X4MM DYMO 91339',
+        'CUCHILLO FROMM A33-7016',
+        'FUENTE PODER ASTEC MP41N1N01',
+        'FUENTE PODER ASTEC MP63L01',
+        'FUENTE PODER ASTEC MP81E1E1N4LL01',
+        'MODULO SAL.ALLEN BRADLEY 1746OB16',
+        'MODULO INTERFACE ALLEN BRADLEY 1771DA',
+        'MULTIPLEXOR INTECH INTECHMICRO 2100-M',
+        'TARJETA TEKNOR APPLICOM T946/566_1-00B',
+        'PROCESADOR NEWNES 32APUI00-02',
+        'TARJETA PORTADORA SODERHAMNS 89043301',
+        'PRENSA CABLE 1/2"NPT LAPPKABEL 53016030',
+        'LAMPARA FLUOR.18W 220V G24D2 B/CAL',
+        'TECLE CADENA MANUAL 1 TON',
+        'TECLE CADENA MANUAL 0,5 TON.',
+        'INTERRUPTOR TELEMECANIQUE XPS-AT',
+        'INTERRUPTOR TELEMECANIQUE XPS-VN3742',
+        'CABLE 1X10AWG 1KV 90°C XLPE/PVC SUPERFL.',
+        'CABLE 1X8AWG 1KV 90°C XLPE/PVC SUPERFLEX',
+        'CABLE 4X12AWG 1KV 90°C XLPE SUPERFLEX',
+        'PERFIL CANAL U AC.A37-24ES 200x75x12MM',
+        'ENCODER ALLEN BRADLEY 845H-SJHZ13CNY1C',
+        'GUIA DUROCOTON 190X51X36MM',
+        'GUANTE COMBINADO P6 REF.PALMA Y DEDOS',
+        'CAJA BOT.2 POS.TELEMECANIQUE XAL-D02',
+        'ESLABON C/CLIP 1"BS 16B-1/26 P/REC',
+        'PIÑON B Z=15 1"BS 16B-1 AL EJE',
+        'SOPORTE PIE 2.15/16"DODGE S-2000 070331',
+        'VALVULA DIR.4/3 VICKERS DG4S4018CUD60',
+        'CONVERTIDOR TRANSCEIV ETHERNET AUI RF-45',
+        'MODULO ANALOGO ALLEN BRADLEY 1794IE4XOE2',
+        'SENSOR LUMINISCENCIA SICK LUT3650',
+        'SENSOR DIFUSO BANNER Q85BB62DL',
+        'BLOQUE CONTACTO A.BRADLEY 100-FB22',
+        'SOPORTE BRIDA SKF FYJ 80 TF',
+        'FLEXIBLE 3/8"x0,50M R2AT H12(S)/90º',
+        'FLEXIBLE HID.1/4"X1,0M R7 H1/4"JIC',
+        'FLEXIBLE 1/4"x0,6M R7AT 4FJX',
+        'FLEXIBLE 1/2"x1,70M R2AT 8FJX/90º',
+        'FLEXIBLE 1/4"x0,87M R2AT 4FJX',
+        'FLEXIBLE 1/4"x0,45M R2AT 4FJX',
+        'FLEXIBLE HID.1/4"x1,5M R2AT H1/4"JIC',
+        'MODULO DISPLAY SIEMENS 6ED10521FB000BA4',
+        'BLOQUE CONTACTOS TELEMECANIQUE ZBE101',
+        'PRESOSTATO FESTO PEV1/4B',
+        'MODULO ENT.ALLEN BRADLEY 1746IB32',
+        'VALVULA DIR.4/3 VICKERS DG4V36CMUD660',
+        'TIOSULFATO SODIO Na2S2O3 x 5H2O',
+        'YODURO DE POTASIO KI 10%',
+        'ACIDO SULFAMICO NH2SO3H 99,3-100,3%',
+        'TIOCIANATO POTASIO KSCN 10%',
+        'ALMIDON SOLUBLE (C6H10O5)n 2%',
+        'SENSOR OPTICO DIFUSO BANNER QS30LDQ',
+        'PASADOR CADENA WH 82XHD',
+        'PULMON NEU.FIRESTONE W01-358-6900',
+        'SOPORTE PIE SKF SY 2.7/16" FM',
+        'SOPORTE PIE SKF SYR 2.7/16"',
+        'TARJETA COM.S-S TECHNOLOGIES 5136-SD-ISA',
+        'CONECTOR 1/2"NPTFxH1/2"NPTF ACERO',
+        'CONECTOR TEE H1/2"NPTF ACERO',
+        'ETIQUETA ADHESIVAS 36,5X31,5CM PALLET',
+        'RODAMIENTO SKF 6209 C4',
+        'GRASA LUB.VERKOL GEL WT',
+        'ARANDELA PLANA M10 DIN 125A INOX.316',
+        'ARANDELA PLANA M16 INOX.316',
+        'ARANDELA PLANA M8 DIN125A AISI-316',
+        'PERNO M12-1,75X45MM CAB.HEX.A4-316L',
+        'BOBINA 230VCA BURKERT 00645558',
+        'CADENA TRANSP.1.1/2" ANSI C2060H',
+        'CAJA METALICA 200x150x115MM CAFE',
+        'TROMPA VACIO POR AGUA BRAND 159600',
+        'JG SLLS,SIN MODIFICADOR:NEUMÁTICO,D VAST',
+        'TUERCA,AUTOBLOQ:FIJACIÓN,29,794MM X 44,5',
+        'ARAND,D/PRES:RETENCIÓN,30,302MM DI,48,81',
+        'BOMBA VICKERS PVE19-B2R-STS-1F-41-C21-12',
+        'SELLO HID.1.1/2"X3.1/2" JANSSEN 11830',
+        'VALVULA 5/2 MAC 82A-AC-CKA-TM-DABP-1DA',
+        'VALVULA BOLA 1.1/4"NPT 1000LB 316/PTF 2C',
+        'MOTOR POCLAIN MS 08-2-121-A08-1320-0000',
+        'CONTACTOR 5,5KW TELEMECANIQUE LC1D12M7',
+        'VENTILADOR AXIAL SEW 1823248 DV/DVE/DX',
+        'MOTOR CA 30KW 4P 200L IMB3 1LG4207-4AA60',
+        'CABLE 3G1,5MM2 500V 70°C OLFLEX 110',
+        'CABLE 3G2,5MM2 500V 70°C OLFLEX 110 PVC',
+        'CABLE 4G1,5MM2 500V L.KABEL ÖLFLEX-FD',
+        'CABLE 7X1,5MM2 500V 70°C OLFLEX 110',
+        'ESLABON SIMPLE 1.1/2"C2060H',
+        'ESLABON SIMPLE 1.1/2"C2060H C/S2-1 C/L',
+        'CUERPO VAL.DN65 PN16 ARMATUREN STEVI440',
+        'CUERPO VAL.DN80 PN16 ARMATUREN STEVI440',
+        'TARJETA COMUNIC.ALLEN BRADLEY 1784PKTX',
+        'BROCA 10MM P/CONCRETO',
+        'VALVULA ESC.RAPIDO G1/2"FESTO SEU-1/2',
+        'CORCHETE 1/4" STANLEY TRA-704',
+        'EQUIPO FLUOR.2X36W LUMENAC 236E',
+        'FLEXIBLE 3/4"X1M R9R 12FJX90-12FJX',
+        'FLEXIBLE HID.1"x1,6M R2 FJX/90º',
+        'FLEXIBLE 3/8"X1,3M R2 6FJX90-6FJX',
+        'TRASPALETA BASLER TRAKTOR 2500KG',
+        'ESLABON SIMPLE 1.3/4"ANSI 140-1 RECTO',
+        'SELLO HID.1.3/8"X2.1/2"JANSSEN 43511',
+        'SELLO HID.2.1/2"X4"JANSSEN 17079',
+        'SELLO NEU.1"X3"JANSSEN 16516',
+        'SELLO NEU.1"X4"JANSSEN 20109',
+        'SELLO NEU.1"X2.1/2"JANSSEN 15607',
+        'SELLO NEU.1,3/4"X4"JANSSEN 15802',
+        'FLEXIBLE 1"X2M R9AT H1"BSP-H1"BSP GIRAT',
+        'FLEXIBLE 1/4"X0,9M R9AT H1/4"BSP/GIRAT',
+        'FLEXIBLE 3/4"X2,5M R9AT H3/4"BSP/GIRAT',
+        'FLEXIBLE HID.3/8"X700MM R2AT H12S',
+        'FLEXIBLE 1/4"X1,1M R2AT H6S90º',
+        'FLEXIBLE 1/4"X1,5M R2AT H6L90º-H6S90º',
+        'FLEXIBLE 1/4"X3M R2AT H6L90º-H6S90º',
+        'FLEXIBLE 1/4"X0,8M R2AT H6L90º-H6S90º',
+        'FLEXIBLE 1"X1M R2AT H38 90º-H1"JIC90º',
+        'FLEXIBLE 1"X1,2M R2AT H38 90º-H1"JIC90º',
+        'FLEXIBLE 1/2"X0,8M R2AT H16',
+        'FLEXIBLE 1/2"X0,7M R2AT H16',
+        'FLEXIBLE HID.1/2"X0,6M R2AT HM16',
+        'FLEXIBLE HID.1/2"X0,6M R2AT H16/90º',
+        'FLEXIBLE 1/2"X1M R2AT H16',
+        'FLEXIBLE 1/4"X0,6M R2AT H8-H8 90º',
+        'FLEXIBLE 1/2"X1,13M R2AT H1/2"BSP',
+        'FLEXIBLE 1/2"X0,45M R2AT H1/2"BSP',
+        'FLEXIBLE 1/2"X0,73M R2AT H1/2"BSP',
+        'FLEXIBLE 1/2"X0,85M R2AT H1/2"BSP',
+        'FLEXIBLE 3/4"X2,6M R2AT H3/4"BSP',
+        'FLEXIBLE 1/2"X1,2M R9AT H1/2"BSP-H15L90º',
+        'FLEXIBLE 3/4"X1,25M H20S90º-BRIDA 1"90º',
+        'FLEXIBLE 3/4"X1,2M H20S90º-BRIDA 3/4"90º',
+        'FLEXIBLE 1/2"X1,2M R9AT H22L90º-H1/2"BSP',
+        'FLEXIBLE 1/2"X1,2M R9AT H16S-H16S',
+        'FLEXIBLE 1/2"X8M R2AT M1/2"NPT',
+        'FLEXIBLE 1/2"X3,5M R2AT M1/2"NPT',
+        'FLEXIBLE 1/2"X8,5M R2AT M1/2"NPT',
+        'FLEXIBLE 1/2"X2,5M R2AT M1/2"NPT',
+        'FLEXIBLE 1/2"X2,8M R2AT M1/2"NPT',
+        'FLEXIBLE HID.1/2"X14M R2AT 1/2"NPT',
+        'FLEXIBLE HID.1/2"X2M R2AT M1/2"NPT',
+        'FLEXIBLE 1/2"X4,5M R2AT M1/2"NPT',
+        'FLEXIBLE 1/2"X7M R2AT M1/2"NPT',
+        'FLEXIBLE 1/2"X1,5M R2AT M1/2"NPT',
+        'FLEXIBLE 1/2"X5,5M R2AT M1/2"NPT',
+        'DISCO EMBRAGUE 8"X5"X1/4"CE1-026-026',
+        'ELEMENTO FILTRO HID.HYDAC 0160D010BN3HC',
+        'REPARACION CIL.NEU.FESTO DNC-125-PPV-A',
+        'CILINDRO NEU.FESTO DNC-100-125-PPV-A',
+        'REPARACION SELLOS FESTO DNC-100-PPVA',
+        'REGULADOR PRES.G3/8"FESTO LR-3/8-D-MIDI',
+        'ESPARRAGO M20-2,5X110MM SAE4340 H/40MM',
+        'CORCHETE METALICO 5/16"STANLEY TRA-205',
+        'SOPORTE PIE SEAL MASTER MPD-35',
+        'SOPORTE BRIDA SEAL MASTER MFCD-35',
+        'POTENCIOMETRO FSK 5K/355°G-19-PK1025-000',
+        'POTENCIOMETRO GEFRAN LTM 150S 5K',
+        'ENCODER 100PPR ACCU-CODER 712',
+        'MACHOS ROSCAR M5-0,8 SI',
+        'MACHOS ROSCAR M10-1,5 SI',
+        'MACHOS ROSCAR M12-1,75',
+        'MACHOS ROSCAR M14-2,0 SI',
+        'MACHOS ROSCAR M16-2,0 SI',
+        'MACHOS ROSCAR M18-2,5 SI',
+        'MACHOS ROSCAR M20-2,5 SI',
+        'MACHOS ROSCAR M22-2,5',
+        'MACHOS ROSCAR M24-3,0 SI',
+        'MACHO ROSCAR 1/2"-14NPT',
+        'BASE ZOCALO FINDER 94.74.0 RELE 55/85',
+        'CABEZA ARTICULACION SKF SAKAC 16M',
+        'EXTREMO ART.SKF SALKAC 16M',
+        'AROSELLO V-95A NBR',
+        'SENSOR FOTOELECTRICO BROOKHUIS 244414',
+        'CONECTOR BROOKHUIS 257812',
+        'SENSOR FOTOELECTRICO BROOKHUIS 244415',
+        'REFLECTOR BROOKHUIS 244419',
+        'CONECTOR BROOKHUIS 257612',
+        'FUENTE PODER BROOKHUIS 244571+244572',
+        'PANTALLA BROOKHUIS 244505',
+        'LAMPARA BROOKHUIS 244506',
+        'CONECTOR HEMBRA BROOKHUIS 245321',
+        'CONECTOR BROOKHUIS 245322',
+        'CORREA PLANA DENT.HTD 1190-14M-85',
+        'ADAPTADOR 40A 690VAC K.MOELLER AD 40/5-1',
+        'INTERRUPTOR 3x125A C.HAMMER HFWF3125L',
+        'FLEXIBLE HID.3/4"X1,0M R2 H3/4"JIC',
+        'SENSOR TEMP.-100/400°C PT-100 3MMX5M',
+        'PIÑON B Z=13 2,609"',
+        'CONECTOR MACHO 90º1/4"BSPTX7/16"JIC37º',
+        'FLEXIBLE 3/8"X1,5M R2AT 12FDLX',
+        'CABEZA ARTICULACION SKF SIL 25 C',
+        'BROCA 9MM P/CONCRETO',
+        'ESPARRAGO 1/2"-13X5.1/2"UNC AC.SAE GR.5',
+        'FLEXIBLE 1"X0,7M R1AT 16FJX90-16FJX',
+        'FLEXIBLE 1"X2,2M R9R 16FJX',
+        'FLEXIBLE 1/2"X1,1M R2AT 8FJX90-8FJX',
+        'MANGUERA NEU.3/4"300PSI SMC AMARILLO',
+        'POTENCIOMETRO SLS320/450/18K/L/66/01',
+        'VALVULA NEU.5/2 MECMAN 581-211-100-0',
+        'VALVULA DIR.5/3 MECMAN 299111992-9',
+        'RODAMIENTO SKF 5211 E 2RS1',
+        'BRIDA BASCULANTE FESTO SNGL-50',
+        'BUJE SKF PRMF 909550',
+        'SELLOS HID.JANSSEN 55174',
+        'BUJE SKF PRMF 9095100',
+        'PLACA AC.T1 166x50x8MM LP1-020-117',
+        'ENGRANAJE SODERHAMNS 84013101',
+        'SELECTOR A.BRADLEY 800FPLSM25PN3YX10',
+        'SELECTOR A.BRADLEY 800FPLSB35PN3YX20',
+        'SELECTOR ALLEN BRADLEY 800FPLSR35PN3YX11',
+        'PILOTO LUM.A.BRADLEY 800FP-P4PN7R ROJO',
+        'GRASA PREMALUBE RED NLGI 2',
+        'MOTOR HID.CHAR-LYNN 104-1022-006',
+        'TUBO FLEX.PU 6x1,0MM 0,8MPA AZUL',
+        'TUBO FLEX.PU8X1,25MM FESTO PUN-8x1.25BL',
+        'TUBO FLEX.PU 10x1,75MM 0,8MPA AZUL',
+        'TUBO FLEX.PU 12x2,0MM 0,8MPA AZUL',
+        'PULSADOR LUM.18x24MM EAO 61-1130.0-1270',
+        'BLOQUE CONTACTO EAO 61-8410.12/15',
+        'CARTRIDGE NEGRO HEWLETT PACKARD Q6511A',
+        'ELEMENTO FILTRO 111x78x58MM SCHULZ MSV40',
+        'REMACHE POP ALUMINIO 4,8X25,4MM',
+        'AROSELLO VOGT 19.02 N-628-FRS',
+        'AROSELLO VOGT 19.03 N-628-FRS',
+        'ESLABON TRIPLE 2" BS 32B-3R 4 PUNTAS',
+        'RETEN 50X62X7MM HMS4 NBR',
+        'PIÑON 1 SEW 6890 SF82DV132M4BM15HSRZC',
+        'CASQUILLO FROMM N3.2343 ENZUNCH.NEU.A384',
+        'CASQUILLO FROMM N3.2314 ENZUNCH.NEU.A384',
+        'CABLE 4x6AWG 1KV 90ºC XLPE/PVC XTMUV',
+        'CONECTOR 3/8"ESPIGA x 3/8"NPT',
+        'MOTOR HID.CHAR-LYNN 104-1386-006',
+        'CORREA V A-158',
+        'MOTOR CA 7,5KW 4P 132M B35 ABB M2QA 380V',
+        'MOTOR CA 1,1KW 4P 90S B35 ABB M2QA',
+        'MOTOR CA 1,5KW 4P 90L B35 ABB M2QA',
+        'INTERRUPTOR DPST 16A ARCOLECTRIC C1750OO',
+        'TAPA ARCOLECTRIC A1080MO',
+        'ELEMENTO FILTRO PARKER GO-4301',
+        'LIMPIADOR CONT.ELECTRONICO AEROSOL HFC',
+        'CILINDRO NEU.12BAR FESTO DNC-63-25-PPV',
+        'BRIDA BASCULANTE SNGB-50 FESTO 34542',
+        'CUERPO VAL.DN100 PN16 ARMATUREN STEVI440',
+        'ACTUADOR 12KN ARMATUREN ARI-PREMIO',
+        'ARANDELA PLANA M24x4MM AC.ASTM F436',
+        'VALVULA DIREC.4/2 MAC 6511B-512-PP-112DA',
+        'VALVULA DIREC.4/2 MAC 6311D-311-PM-111DA',
+        'CONDENSADOR 1,5UF COMAR RP-2-1540SH PO',
+        'PILOTO LUM.TELEMECANIQUE XB4BVB3 VERDE',
+        'PILOTO LUM.TELEMECANIQUE XB4BVB5 AMARI.',
+        'CABEZA ARTICULACION SKF SIKAC 16 M',
+        'RODAMIENTO SEW 123242',
+        'RODAMIENTO SKF 6213 NR',
+        'RODAMIENTO SKF NUP 209 EC',
+        'RODILLO LEVA SKF 305807 C-2Z',
+        'ACOPLAMIENTO FLEX.MAGNALOY M50010810',
+        'SELLOS HID.JANSSEN 13486',
+        'SELLOS NEU.JANSSEN 15285',
+        'SELLOS NEU.JANSSEN 15305',
+        'SELLOS NEU.JANSSEN 14200',
+        'SELLOS NEU.JANSSEN 14069',
+        'SELLOS NEU.JANSSEN 14068',
+        'SELLOS NEU.JANSSEN 14199',
+        'SELLOS NEU.JANSSEN 14066',
+        'SELLOS HID.JANSSEN 14061',
+        'PLACA ARRASTRE 485x145x75MM MS1-020-022',
+        'PLACA ARRASTRE 980x125x75MM MS1-020-023',
+        'ANTIVIBRATORIO ROSTA ESL27',
+        'SIRENA 125DB 900HZ KLAXON SO4',
+        'PLANCHA AC.A37-24ES 3x1000x2000MM',
+        'MANGA POLIETILENO AB.1750x0,032MM TRANS.',
+        'FUENTE PODER ATX 400W',
+        'VALVULA DIREC.4/2 VICKERS SV1-10-4-0-00',
+        'PILOTO LUM.TELEMECANIQUE XB4BVB6 AZUL',
+        'INTERRUPTOR NIVEL 15A OMEGA LVL600',
+        'ESLABON SIMPLE M315-A-160 C/ACAB.',
+        'EXTREMO ART. MICRO 9.000.012 CN10',
+        'BRIDA BASCULANTE FESTO SNC-63 174386',
+        'BRIDA BASCULANTE FESTO SNCS-80 174401',
+        'MOTOR CA 18,5KW 6P 200L B3 SIEMENS PP5',
+        'ENCODER ALLEN BRADLEY 845T-DZ22ACM-C',
+        'RELE ESTADO SOLIDO OMRON G3NA-D210BDC524',
+        'PASTILLA RECTIF.VOLLMER 414132 CA200',
+        ]
+    
+    return  data
+}

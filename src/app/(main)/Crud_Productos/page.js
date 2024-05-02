@@ -1,6 +1,9 @@
 import SkeletonChart from "@/ui/skeleton/chart";
-import { Suspense } from "react";
+
 import { cookies } from 'next/headers'
+import { createData, readDataProductos } from "@/app/lib/dashboard/actions";
+import TablaCrud from "./componenetes/tablaCrud";
+
 
 
 
@@ -13,11 +16,14 @@ export const metadata = {
 
 export default async function Page({ searchParams }) {
 
-    const cookieStore = cookies()
-
-
+    const data = await readDataProductos()
+    
+    console.log(data)
+ 
+   
     return (<>
-     
+        <TablaCrud data={data} />
+
     </>
 
     );

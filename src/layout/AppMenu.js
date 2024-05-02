@@ -9,7 +9,7 @@ const AppMenu = () => {
             icon: 'pi pi-home',
 
             items: [{ label: 'Dashboard', icon: 'pi pi-home', to: 'dashboard', },
-            { label: 'Dashboard GIS', icon: 'pi pi-chart-bar', to: 'dashboard-gis', },]
+            { label: 'Productos', icon: 'pi pi-chart-bar', to: 'Crud_Productos', },]
         },
 
 
