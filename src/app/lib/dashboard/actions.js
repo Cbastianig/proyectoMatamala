@@ -93,7 +93,7 @@ async function randomNum0_200() {
 
 
 export async function editData(data) {
-    console.log(data)
+    
     const id = data.id;
     const nombre = data.nombre;
     const fecha_Compra = data.fecha_Compra;
@@ -122,7 +122,7 @@ export async function editData(data) {
 
 }
 export async function createnewRow (data){
-    console.log(data)
+   
     const nombre = data.nombre;
     const fecha_Compra = data.fecha_Compra;
     const cantidad_compras = data.cantidad_compras;
